@@ -118,6 +118,20 @@
   /* a merge: a ghost of the placed pin slides into the one it joined */
   .ghost { position: absolute; z-index: 650; width: 18px; height: 18px; border: 2px solid #fff; border-radius: 50% 50% 50% 0; background: var(--pc); rotate: -45deg; pointer-events: none; box-shadow: 0 1px 4px rgba(0, 0, 0, .35); }
 
+  /* Floating boxes (.float): the selected pin's card, toasts. */
+  #detail { position: absolute; z-index: 1000; left: 8px; bottom: 26px; max-width: calc(100% - 16px); padding: 6px 10px 8px; font-size: var(--fs-s); line-height: 1.35; cursor: default; }
+  #detail .dhead { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-weight: 600; }
+  #detail .dhead span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #detail .x { padding: 0 2px; border: 0; background: none; color: var(--mut); font-size: 17px; line-height: 1; }
+  #detail .x:hover { color: var(--fg); }
+  #detail .dcoords { color: var(--mut); font-variant-numeric: tabular-nums; }
+  #detail .links { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 4px; }
+  #detail .lk { display: inline-flex; align-items: center; gap: 4px; font-weight: 600; }
+  #toasts { position: absolute; z-index: 1100; top: 10px; left: 56px; right: 10px; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; pointer-events: none; }
+  #time > #toasts { position: fixed; left: 16px; right: auto; width: min(340px, calc(100vw - 32px)); align-items: flex-start; }
+  .toast { width: min(340px, 100%); padding: 6px 10px; font-size: var(--fs-m); overflow-wrap: anywhere; cursor: pointer; pointer-events: auto; }
+  .toast.note { cursor: default; }
+
 </style>
 </head>
 <body>
@@ -690,6 +704,152 @@ function randomPoint() {
     fallback ??= p;
   }
   return fallback;   // null: a sliver too thin to hit
+}
+
+/* ---------- history list ---------- */
+
+const showNewest = () => $('list').firstElementChild?.scrollIntoView({ block: 'nearest' });
+
+function renderList() {
+  const list = $('list');
+  const mine = pins.filter((p) => p.by === cid).length;
+  $('count').textContent = pins.length ? `Pins · ${pins.length}` : 'Pins';
+  $('clear').hidden = !mine;
+  $('clear').textContent = 'Clear mine';
+  $('sort').textContent = `Sort: ${sortMode === 'top' ? 'top' : 'newest'}`;
+  updatePlaceBtn();
+  renderDetail();
+  // Room updates re-render the list; while a label is being typed in it, leave the rows (and focus) alone.
+  if (labelEdit && list.contains(labelInput)) return;
+  list.replaceChildren();
+  if (!pins.length) {
+    list.append(el('li', { className: 'empty' }, 'No pins yet.'));
+    return;
+  }
+  const shown = sortMode === 'top' ? [...pins].sort((a, b) => score(b) - score(a) || b.ts - a.ts) : pins;
+  for (const p of shown) {
+    const c = colorOf(p.by);
+    const li = el('li', { className: [p.id === pins[0].id && 'latest', c && 'owned', p.id === selectedId && 'sel'].filter(Boolean).join(' ') });
+    if (c) li.style.setProperty('--pc', c);
+
+    const v = myVote(p);
+    const up = el('button', { type: 'button', title: 'Upvote', className: v === 1 ? 'on' : '' }, '▲');
+    const down = el('button', { type: 'button', title: 'Downvote', className: v === -1 ? 'on' : '' }, '▼');
+    up.addEventListener('click', (e) => { e.stopPropagation(); vote(p, 1); });
+    down.addEventListener('click', (e) => { e.stopPropagation(); vote(p, -1); });
+
+    const acts = el('div', { className: 'acts' });
+    if (p.by === cid) {
+      const del = el('button', { title: 'Delete pin', type: 'button' }, '×');
+      del.addEventListener('click', (e) => { e.stopPropagation(); removePin(p.id); });
+      acts.append(del);
+    }
+
+    // First line: the label, or the coordinates until there is one; on your own pins it's the click
+    // target for editing the label. Second line (rooms): who dropped it. Then delete, then votes.
+    const coords = `${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}`;
+    const first = el('span', { className: p.label ? 'lbl' : 'll', title: p.label ? coords : '' }, p.label || coords);
+    if (p.by === cid) {
+      first.classList.add('mine');
+      first.title = p.label ? `${coords} · click to edit the label` : 'Click to add a label';
+      first.addEventListener('click', (e) => { e.stopPropagation(); startLabel(p); });
+    }
+    li.append(
+      el('span', { className: 'num' }, String(p.n)),
+      el('div', { className: 'meta' },
+        labelEdit === p.id ? labelInput : el('div', { className: 'coords' }, p.manual ? el('span', { title: 'Placed by hand' }, '✋ ') : '', first),
+        el('div', { className: 'when' }, nameOf(p.by))),
+      acts,
+      el('div', { className: 'votes seg' }, up, el('b', {}, String(score(p))), down),
+    );
+    li.addEventListener('click', () => select(p.id, true));
+    list.append(li);
+  }
+}
+
+/* ---------- selected-pin card: where is it, in Google Maps and OSM ---------- */
+
+const detail = el('div', { id: 'detail', className: 'float', hidden: true });
+cont.append(detail);
+L.DomEvent.disableClickPropagation(detail);
+L.DomEvent.disableScrollPropagation(detail);
+
+const gmapsUrl = (p) => `https://www.google.com/maps/search/?api=1&query=${p.lat.toFixed(6)},${p.lng.toFixed(6)}`;
+const COPY_ICON = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/><path d="M10.5 3.5v-1a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h1"/></svg>';
+const osmUrl = (p) => `https://www.openstreetmap.org/?mlat=${p.lat.toFixed(6)}&mlon=${p.lng.toFixed(6)}#map=17/${p.lat.toFixed(6)}/${p.lng.toFixed(6)}`;
+
+// Labels: a couple of words naming the spot (shop, park, …), set by whoever dropped the pin and
+// edited in place in the pin list: click your pin's label (or "+ label") to type.
+const MAX_LABEL = 30;   // same as the server
+let labelEdit = null;   // id of the pin whose label is being typed
+const labelInput = el('input', { className: 'inline-edit strong', maxLength: MAX_LABEL, placeholder: 'Shop, park, corner…', spellcheck: false, autocomplete: 'off', enterKeyHint: 'done' });
+labelInput.setAttribute('aria-label', 'Pin label');
+labelInput.addEventListener('click', (e) => e.stopPropagation());   // don't select the pin
+labelInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { e.preventDefault(); endLabel(true); }
+  else if (e.key === 'Escape') { e.stopPropagation(); endLabel(false); }   // cancel the edit, not deselect the pin
+});
+labelInput.addEventListener('blur', () => endLabel(true));
+function startLabel(p) {
+  labelEdit = p.id;
+  labelInput.value = p.label || '';
+  renderList();
+  labelInput.scrollIntoView({ block: 'nearest' });
+  labelInput.focus();
+  labelInput.select();
+}
+function endLabel(save) {
+  if (!labelEdit) return;
+  const id = labelEdit;
+  labelEdit = null;
+  const p = pins.find((x) => x.id === id), v = labelInput.value.replace(/\s+/g, ' ').trim();
+  if (save && p && v !== (p.label || '')) setLabel(p, v);
+  renderList();
+}
+function setLabel(p, label) {
+  post({ type: 'label', pin: p.id, label });
+}
+
+function renderDetail() {
+  const p = pins.find((x) => x.id === selectedId);
+  detail.hidden = !p;
+  if (!p) return;
+  // Compact: a label, then open (↗) and copy buttons for its URL.
+  const link = (label, url) => {
+    const open = el('a', { className: 'btn sm', href: url, target: '_blank', rel: 'noopener', title: `Open in ${label}` }, '↗');
+    const copy = el('button', { type: 'button', className: 'btn sm', title: `Copy ${label} link` });
+    const icon = () => (copy.innerHTML = COPY_ICON);
+    icon();
+    copy.addEventListener('click', async () => {
+      copy.textContent = (await copyText(url)) ? '✓' : '✗';
+      setTimeout(icon, 1200);
+    });
+    open.setAttribute('aria-label', `Open in ${label}`);
+    copy.setAttribute('aria-label', `Copy ${label} link`);
+    return el('span', { className: 'lk' }, label, open, copy);
+  };
+  const close = el('button', { type: 'button', className: 'x', title: 'Close (Esc)' }, '×');
+  close.addEventListener('click', () => { selectedId = null; renderList(); });
+  const title = `#${p.n}${p.label ? ` ${p.label}` : ''} · ${nameOf(p.by)}${p.manual ? ' · by hand' : ''}`;
+  detail.replaceChildren(
+    el('div', { className: 'dhead' }, el('span', { title }, title), close),
+    el('div', { className: 'dcoords' }, `${p.lat.toFixed(6)}, ${p.lng.toFixed(6)}`),
+    el('div', { className: 'links' }, link('Google', gmapsUrl(p)), link('OSM', osmUrl(p))),
+  );
+}
+
+// Selecting a pin zooms in far enough to see shops and street names around it,
+// but never zooms out. pan=false (a click on the marker itself) zooms around the marker instead.
+const CLOSE_ZOOM = 17;
+function select(id, pan) {
+  selectedId = id;
+  renderList();
+  const p = pins.find((x) => x.id === id);
+  if (!p) return;
+  const z = Math.max(map.getZoom(), CLOSE_ZOOM);
+  if (pan) map.setView([p.lat, p.lng], z);
+  else if (map.getZoom() < z) map.setZoomAround([p.lat, p.lng], z);
+  bounce(markers.get(id));
 }
 
 /* ---------- boot ---------- */
