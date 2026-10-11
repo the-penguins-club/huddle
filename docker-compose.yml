@@ -1,0 +1,28 @@
+# Huddle behind an existing Traefik. Copy .env.example to .env and set DOMAIN, then:
+#   docker compose up -d --build
+#
+# Keep this at a single replica: room state lives in the process's memory.
+services:
+  randompin:
+    build: .
+    restart: unless-stopped
+    volumes:
+      - randompin-data:/data
+    networks:
+      - traefik
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=${TRAEFIK_NETWORK:-traefik}
+      - traefik.http.routers.randompin.rule=Host(`${DOMAIN:?set DOMAIN in .env}`)
+      - traefik.http.routers.randompin.entrypoints=${TRAEFIK_ENTRYPOINT:-websecure}
+      - traefik.http.routers.randompin.tls=true
+      - traefik.http.routers.randompin.tls.certresolver=${TRAEFIK_CERTRESOLVER:-letsencrypt}
+      - traefik.http.services.randompin.loadbalancer.server.port=8765
+
+networks:
+  traefik:
+    external: true
+    name: ${TRAEFIK_NETWORK:-traefik}
+
+volumes:
+  randompin-data:

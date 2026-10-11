@@ -1,0 +1,7 @@
+.git
+.env
+.env.example
+rooms.json
+rooms.json.tmp
+docker-compose.yml
+Dockerfile
