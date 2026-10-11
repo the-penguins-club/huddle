@@ -1,0 +1,52 @@
+  /* ===== Huddle styles =====
+     1. tokens (colours, shadows, type, shape; light and dark)   2. base
+     3. components: buttons, segmented switches, fields, cards, lists, avatars
+     4. regions: panel, room box and pick, time, chat, map, floating boxes, tutorial
+     5. layouts: desktop (over 960px), stacked (960px and under), phones (600px and under), in between,
+        touch screens
+     Components are classes (.btn, .seg, .field, .inline-edit, .float, .list); regions only place
+     and size them. To change how something looks everywhere, change the component. */
+
+  /* ---------- 1. tokens ---------- */
+  :root {
+    color-scheme: light;
+    /* surfaces, back to front: canvas (behind the map and calendar) < panel (--bg) < cards and controls
+       (--card, or --surf: the same, lit from above) < floating boxes. --inset: recessed (the lists'
+       well, switch tracks); --hover: a control under the pointer */
+    --canvas: #e8ebf0; --bg: #f2f4f7; --card: #fff; --surf: linear-gradient(180deg, #fff, #f8f9fb);
+    --inset: #e9ecf1; --hover: #f5f6f9; --chat: #f9fafb;
+    --fg: #1b2030; --mut: #5e6677; --line: #e1e4ea; --line-strong: #c9ced8;
+    /* shadows: a control at rest, a raised card, a card lifted on hover, a field's inner edge, a floating box */
+    --sh-1: 0 1px 2px rgba(16, 24, 40, .06);
+    --sh-2: 0 1px 2px rgba(16, 24, 40, .08), 0 3px 8px rgba(16, 24, 40, .1);
+    --sh-3: 0 2px 4px rgba(16, 24, 40, .08), 0 8px 18px rgba(16, 24, 40, .14);
+    --sh-in: inset 0 1px 1px rgba(16, 24, 40, .05);
+    --sh-float: 0 1px 2px rgba(16, 24, 40, .06), 0 6px 18px rgba(16, 24, 40, .1);
+    --sh-edge: rgba(16, 24, 40, .14);   /* a scrolling box's edge, where there's more to see */
+    /* colours: red for actions and selection; slate blue marks the chat, green what's decided */
+    --acc: #d93025; --acc-grad: linear-gradient(180deg, #df3a2f, #cc2a1f); --acc-glow: rgba(217, 48, 37, .22);
+    --acc2: #3d5a94; --ok: #15803d; --warn: #c2410c;
+    --hl: #d97706; --hl-glow: rgba(217, 119, 6, .35);   /* the tutorial's highlight: must not look like the accent */
+    /* the calendar: one person free / two or more / everyone, the numbers on them, and your own outline */
+    --t-one: #d3dcea; --t-some: #fcc93a; --t-all: #4fd282; --t-text: #1d2433; --t-mine: rgba(0, 0, 0, .6);
+    /* type and shape */
+    --fs-xs: 11px; --fs-s: 12px; --fs-m: 13px;
+    --r-s: 6px; --r: 8px; --r-l: 10px;
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --canvas: #090b0f; --bg: #12151c; --card: #1a1f29; --surf: linear-gradient(180deg, #202634, #1a1f29);
+    --inset: #0c0f14; --hover: #222937; --chat: #0f1218;
+    --fg: #e8eaf0; --mut: #9aa3b4; --line: #262c38; --line-strong: #39414f;
+    --sh-1: 0 1px 2px rgba(0, 0, 0, .4);
+    --sh-2: 0 1px 2px rgba(0, 0, 0, .5), 0 4px 10px rgba(0, 0, 0, .4);
+    --sh-3: 0 2px 4px rgba(0, 0, 0, .5), 0 10px 22px rgba(0, 0, 0, .5);
+    --sh-in: inset 0 1px 2px rgba(0, 0, 0, .35);
+    --sh-float: 0 2px 4px rgba(0, 0, 0, .3), 0 8px 22px rgba(0, 0, 0, .45);
+    --sh-edge: rgba(0, 0, 0, .5);
+    --acc: #ff6b5e; --acc-grad: linear-gradient(180deg, #e2493e, #cc3a30); --acc-glow: rgba(217, 68, 58, .22);
+    --acc2: #93abdb; --ok: #4ade80; --warn: #fb923c;
+    --hl: #fbbf24; --hl-glow: rgba(251, 191, 36, .4);
+    --t-one: #384457; --t-some: #e0a42e; --t-all: #3cbf6c; --t-text: #14171c; --t-mine: rgba(255, 255, 255, .7);
+  }
+

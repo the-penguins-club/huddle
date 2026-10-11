@@ -8,6 +8,116 @@
 <script>
 </script>
 <style>
+  /* ===== Huddle styles =====
+     1. tokens (colours, shadows, type, shape; light and dark)   2. base
+     3. components: buttons, segmented switches, fields, cards, lists, avatars
+     4. regions: panel, room box and pick, time, chat, map, floating boxes, tutorial
+     5. layouts: desktop (over 960px), stacked (960px and under), phones (600px and under), in between,
+        touch screens
+     Components are classes (.btn, .seg, .field, .inline-edit, .float, .list); regions only place
+     and size them. To change how something looks everywhere, change the component. */
+
+  /* ---------- 1. tokens ---------- */
+  :root {
+    color-scheme: light;
+    /* surfaces, back to front: canvas (behind the map and calendar) < panel (--bg) < cards and controls
+       (--card, or --surf: the same, lit from above) < floating boxes. --inset: recessed (the lists'
+       well, switch tracks); --hover: a control under the pointer */
+    --canvas: #e8ebf0; --bg: #f2f4f7; --card: #fff; --surf: linear-gradient(180deg, #fff, #f8f9fb);
+    --inset: #e9ecf1; --hover: #f5f6f9; --chat: #f9fafb;
+    --fg: #1b2030; --mut: #5e6677; --line: #e1e4ea; --line-strong: #c9ced8;
+    /* shadows: a control at rest, a raised card, a card lifted on hover, a field's inner edge, a floating box */
+    --sh-1: 0 1px 2px rgba(16, 24, 40, .06);
+    --sh-2: 0 1px 2px rgba(16, 24, 40, .08), 0 3px 8px rgba(16, 24, 40, .1);
+    --sh-3: 0 2px 4px rgba(16, 24, 40, .08), 0 8px 18px rgba(16, 24, 40, .14);
+    --sh-in: inset 0 1px 1px rgba(16, 24, 40, .05);
+    --sh-float: 0 1px 2px rgba(16, 24, 40, .06), 0 6px 18px rgba(16, 24, 40, .1);
+    --sh-edge: rgba(16, 24, 40, .14);   /* a scrolling box's edge, where there's more to see */
+    /* colours: red for actions and selection; slate blue marks the chat, green what's decided */
+    --acc: #d93025; --acc-grad: linear-gradient(180deg, #df3a2f, #cc2a1f); --acc-glow: rgba(217, 48, 37, .22);
+    --acc2: #3d5a94; --ok: #15803d; --warn: #c2410c;
+    --hl: #d97706; --hl-glow: rgba(217, 119, 6, .35);   /* the tutorial's highlight: must not look like the accent */
+    /* the calendar: one person free / two or more / everyone, the numbers on them, and your own outline */
+    --t-one: #d3dcea; --t-some: #fcc93a; --t-all: #4fd282; --t-text: #1d2433; --t-mine: rgba(0, 0, 0, .6);
+    /* type and shape */
+    --fs-xs: 11px; --fs-s: 12px; --fs-m: 13px;
+    --r-s: 6px; --r: 8px; --r-l: 10px;
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --canvas: #090b0f; --bg: #12151c; --card: #1a1f29; --surf: linear-gradient(180deg, #202634, #1a1f29);
+    --inset: #0c0f14; --hover: #222937; --chat: #0f1218;
+    --fg: #e8eaf0; --mut: #9aa3b4; --line: #262c38; --line-strong: #39414f;
+    --sh-1: 0 1px 2px rgba(0, 0, 0, .4);
+    --sh-2: 0 1px 2px rgba(0, 0, 0, .5), 0 4px 10px rgba(0, 0, 0, .4);
+    --sh-3: 0 2px 4px rgba(0, 0, 0, .5), 0 10px 22px rgba(0, 0, 0, .5);
+    --sh-in: inset 0 1px 2px rgba(0, 0, 0, .35);
+    --sh-float: 0 2px 4px rgba(0, 0, 0, .3), 0 8px 22px rgba(0, 0, 0, .45);
+    --sh-edge: rgba(0, 0, 0, .5);
+    --acc: #ff6b5e; --acc-grad: linear-gradient(180deg, #e2493e, #cc3a30); --acc-glow: rgba(217, 68, 58, .22);
+    --acc2: #93abdb; --ok: #4ade80; --warn: #fb923c;
+    --hl: #fbbf24; --hl-glow: rgba(251, 191, 36, .4);
+    --t-one: #384457; --t-some: #e0a42e; --t-all: #3cbf6c; --t-text: #14171c; --t-mine: rgba(255, 255, 255, .7);
+  }
+
+  /* ---------- 2. base ---------- */
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body { background: var(--canvas); color: var(--fg); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  button, input, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  [hidden] { display: none !important; }
+  :is(button, a, [role="button"]):focus-visible { outline: 2px solid color-mix(in srgb, var(--acc) 60%, transparent); outline-offset: 2px; }
+  ::placeholder { color: var(--mut); opacity: .85; font-size: var(--fs-s); font-weight: 400; }
+  h1 { margin: 0; font-size: 18px; letter-spacing: -.01em; }
+  /* the huddle's name: looks like the heading until hovered (empty, it shows "Huddle") */
+  h1 .inline-edit { width: auto; max-width: 100%; margin-left: -6px; padding: 0 5px; font: inherit; letter-spacing: inherit; text-overflow: ellipsis; }
+  h1 .inline-edit::placeholder { color: var(--fg); font-size: inherit; font-weight: inherit; opacity: 1; }
+  .h1row h1 { min-width: 0; }
+
+  /* ---------- 4. regions ---------- */
+
+  /* fixed + inset follows the *visible* viewport, so mobile browser chrome can't push the layout off-screen */
+  #app { position: fixed; inset: 0; display: flex; }
+  #map { flex: 1; min-width: 0; background: var(--card); }
+  body.view-time #map { display: none; }
+
+  /* The map: drawing and placing cursors, the Google base map, Leaflet's controls, and the pins. */
+  #map.drawing, #map.drawing .leaflet-interactive { cursor: crosshair !important; touch-action: none !important; }
+  #map.placing, #map.placing .leaflet-interactive, #map.placing .leaflet-marker-icon { cursor: crosshair !important; }
+  .leaflet-google-pane iframe { position: absolute; left: 0; top: 0; border: 0; transform-origin: 0 0; transition: opacity .2s; }   /* fades in */
+  .leaflet-zoom-anim .leaflet-google-pane iframe { transition: transform .25s cubic-bezier(0, 0, .25, 1), opacity .2s; }   /* follows Leaflet's zoom */
+  .leaflet-bar { overflow: hidden; border: 1px solid rgba(0, 0, 0, .15) !important; border-radius: var(--r) !important; box-shadow: 0 1px 4px rgba(0, 0, 0, .15) !important; }
+  .resetc a { font-size: 17px; }
+  .basesw a { font-family: system-ui, sans-serif; font-weight: 700; letter-spacing: -.02em; }   /* shows the map it switches to */
+  .basesw a.google { font-size: 15px; color: #4285f4; }
+  .basesw a.osm { font-size: 9px; color: #3a7d2c; }
+  /* Box / Freehand (a .seg), over the map while drawing an area */
+  #shapesw { position: absolute; z-index: 1000; top: 10px; left: 50%; transform: translateX(-50%); box-shadow: 0 1px 4px rgba(0, 0, 0, .15); }
+  /* Pins: a teardrop rotated so the tip is at the bottom centre; a saturated fill (purple when nobody's
+     colour applies), a thin dark line, a white ring and a faint outer edge, so they read on light and
+     dark map areas alike. */
+  .pin-icon { border: 0; background: none; }
+  .pin-icon .pin { width: 24px; height: 24px; margin: 3px; display: grid; place-items: center; border: 1.5px solid rgba(0, 0, 0, .85); border-radius: 50% 50% 50% 0; background: var(--pc, #8e24aa); transform: rotate(-45deg); box-shadow: 0 0 0 2px #fff, 0 0 0 3px rgba(0, 0, 0, .35), 0 3px 8px rgba(0, 0, 0, .45); }
+  .pin-icon.latest .pin { transform: rotate(-45deg) scale(1.2); box-shadow: 0 0 0 3px #fff, 0 0 0 4.5px rgba(0, 0, 0, .6), 0 3px 10px rgba(0, 0, 0, .55); }
+  .pin-icon.latest:not(.owned) .pin { background: var(--acc); }
+  .pin-icon .size.neg .pin { border-color: rgba(0, 0, 0, .35); box-shadow: 0 1px 3px rgba(0, 0, 0, .3); }   /* downvoted: no emphasis */
+  /* the avatar: the identicon's 5×5 grid sits in an 8×8 viewBox, so drawing it larger than its circle lets
+     the grid fill it; the corners get clipped, which still leaves each one distinct */
+  .pin-icon .pin .av { position: relative; width: 20px; height: 20px; overflow: hidden; border-radius: 50%; background: #fff; transform: rotate(45deg); }
+  .pin-icon .pin .av svg { width: 28px; height: 28px; }
+  .pin-icon .pin span { color: #fff; font: 700 12px/1 system-ui, sans-serif; text-shadow: 0 0 2px rgba(0, 0, 0, .5); transform: rotate(45deg); }
+  /* more votes = bigger, scaled about the tip so the pin stays on its spot; the score on its head is
+     counter-scaled in the code so it stays readable */
+  .pin-icon .size { position: relative; transform-origin: 15px 32px; transition: transform .25s ease, opacity .25s ease; }
+  .pin-icon .vb { position: absolute; left: 19px; top: -5px; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 9px; background: #1e8e3e; color: #fff; font: 700 10px/17px system-ui, sans-serif; text-align: center; transform-origin: 0 100%; box-shadow: 0 0 0 1.5px #fff, 0 1px 3px rgba(0, 0, 0, .4); }
+  .pin-icon .vb.down { background: #5f6368; }
+  /* a pin's label, under its tip: about 7 characters (the full label is in the list) */
+  .leaflet-tooltip.pin-tag { max-width: calc(7ch + 12px); overflow: hidden; padding: 0 6px; border: 0; border-radius: 4px; background: rgba(255, 255, 255, .92); color: #1a1a1a; font: 600 13px/19px system-ui, sans-serif; text-overflow: ellipsis; box-shadow: 0 1px 3px rgba(0, 0, 0, .3); }
+  .leaflet-tooltip.pin-tag::before { display: none; }
+  /* a merge: a ghost of the placed pin slides into the one it joined */
+  .ghost { position: absolute; z-index: 650; width: 18px; height: 18px; border: 2px solid #fff; border-radius: 50% 50% 50% 0; background: var(--pc); rotate: -45deg; pointer-events: none; box-shadow: 0 1px 4px rgba(0, 0, 0, .35); }
+
 </style>
 </head>
 <body>
@@ -73,6 +183,416 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
+const K = { theme: 'randompin.theme', view: 'randompin.view', cid: 'randompin.cid', name: 'randompin.name', fold: 'randompin.fold', panelH: 'randompin.panelHeight', shape: 'randompin.shape', mute: 'randompin.mute', chatH: 'randompin.chatHeight', listH: 'randompin.listHeight', tut: 'randompin.tutorial', tab: 'randompin.tab', sort: 'randompin.sort', base: 'randompin.basemap' };
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+
+// Default region: Gabtoli (W), Kuril (N), Sadarghat (S), Aftabnagar (E), with a little margin.
+const DHAKA = [[23.700, 90.335], [23.828, 90.450]];
+
+const $ = (id) => document.getElementById(id);
+function el(tag, props = {}, ...kids) {
+  const e = Object.assign(document.createElement(tag), props);
+  e.append(...kids);
+  return e;
+}
+// crypto.randomUUID() is missing on plain-http LAN addresses; getRandomValues is not.
+function rid(bytes = 16) { return [...crypto.getRandomValues(new Uint8Array(bytes))].map((b) => b.toString(16).padStart(2, '0')).join(''); }
+function roomCode() { const A = 'abcdefghjkmnpqrstuvwxyz23456789'; return [...crypto.getRandomValues(new Uint8Array(10))].map((b) => A[b % A.length]).join(''); }
+
+const cid = store.get(K.cid, null) || (() => { const v = rid(); store.set(K.cid, v); return v; })();
+const ADJ = ['Quick', 'Calm', 'Brave', 'Lucky', 'Misty', 'Sunny', 'Witty', 'Bold', 'Merry', 'Swift'];
+const ANI = ['Otter', 'Falcon', 'Panda', 'Heron', 'Lynx', 'Gecko', 'Koala', 'Tiger', 'Fox', 'Ibis'];
+let myName = store.get(K.name, null) || (() => {
+  const pick = (a) => a[crypto.getRandomValues(new Uint8Array(1))[0] % a.length];
+  const v = `${pick(ADJ)} ${pick(ANI)}`; store.set(K.name, v); return v;
+})();
+
+/* ---------- state ---------- */
+
+// Pin: {id, n, lat, lng, ts, by (cid), votes: {cid: 1|-1}}
+const normalize = (p) => ({ ...p, by: p.by || cid, votes: p.votes || {} });
+// Everything happens in a room (there's no solo mode): the room id in the link is the only key to it.
+let pins = [];                         // the room's pins, from the server
+let roomId = null, es = null, status = 'connecting';
+let room = { players: {}, online: [] };
+let selectedId = null, sortMode = store.get(K.sort, 'new') === 'top' ? 'top' : 'new';
+let serverInfo = null;
+const markers = new Map();
+
+const score = (p) => Object.values(p.votes).reduce((a, b) => a + b, 0);
+const myVote = (p) => p.votes[cid] || 0;
+const nameOf = (c) => (c === cid ? 'You' : room.players[c]?.name || 'Someone');
+const colorOf = (c) => room.players[c]?.color;
+
+/* ---------- share URL: #[room=id&]map=lat/lng/zoom[&area=lat,lng_lat,lng_…] (older links: &rect=s,w,n,e) ---------- */
+
+const num = (s) => (s !== '' && s != null && Number.isFinite(+s) ? +s : NaN);
+
+function parseHash() {
+  const q = new URLSearchParams(location.hash.replace(/^#/, ''));
+  let view = null, area = null;
+  const m = (q.get('map') || '').split('/').map(num);
+  if (m.length === 3 && m.every(Number.isFinite) && Math.abs(m[0]) <= 90) view = { center: [m[0], m[1]], zoom: m[2] };
+  const a = (q.get('area') || '').split('_').map((pt) => pt.split(',').map(num));
+  if (a.length >= 3 && a.every((pt) => pt.length === 2 && pt.every(Number.isFinite))) area = a;
+  const r = (q.get('rect') || '').split(',').map(num);
+  if (!area && r.length === 4 && r.every(Number.isFinite) && r[0] < r[2] && r[1] < r[3]) area = rectToArea(r);
+  const rm = q.get('room');
+  return { view, area, room: /^[a-z0-9]{6,24}$/.test(rm || '') ? rm : null, present: !!(view || area) };
+}
+
+const r5 = (x) => +x.toFixed(5);
+function updateUrl() {
+  const c = map.getCenter(), parts = [];
+  if (roomId) parts.push(`room=${roomId}`);
+  parts.push(`map=${r5(c.lat)}/${r5(c.lng)}/${map.getZoom()}`);
+  try { history.replaceState(null, '', '#' + parts.join('&')); } catch {}
+}
+
+/* ---------- map ---------- */
+
+const map = L.map('map', { zoomControl: true, minZoom: 2, maxZoom: 19, zoomSnap: 0.25 });
+// Plain OSM tiles: the fallback for the OSM option (see "Base map" below), added only when in use.
+const raster = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19,
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+});
+
+// Layout changes (panel folding, rotation, mobile toolbars) resize the map without a window resize event.
+new ResizeObserver(() => map.invalidateSize()).observe(map.getContainer());
+
+// Stacked layouts only: the strip on top of the panel. Tapping it steps through three states: open;
+// just the list (the controls above it fold away, so the list gets the panel); folded to one row of
+// buttons (so the map or calendar gets the screen); and back to open. Dragging it resizes the panel.
+// The state and the height are the same in Space, Time and Chat, and remembered.
+// Just the list: a shorter panel, the same height in every tab (like the open one), remembered. Folding
+// to it from Space or Time sizes it to the list as it was (the controls above go); from the Chat tab, the
+// first time, to a little over half. Dragging the strip then resizes it.
+const FOLDS = ['open', 'list', 'folded'];
+let fold = 'open', listPanelH = store.get(K.listH, null);
+const clampPanelH = (h) => Math.round(Math.max(120, Math.min(window.innerHeight - 44 - 140, h)));   // leave the tabs and some map
+function setListPanelH(h) {
+  listPanelH = h == null ? null : clampPanelH(h);
+  $('panel').style.setProperty('--list-panel-h', listPanelH ? `${listPanelH}px` : '55%');
+}
+function setFold(f) {
+  f = FOLDS.includes(f) ? f : 'open';
+  if (f === 'list' && fold === 'open') {
+    const box = [...document.querySelectorAll('.listbox')].find((b) => b.getClientRects().length);
+    if (box) {
+      const m = getComputedStyle(box);
+      setListPanelH($('panel').offsetHeight - $('scroller').offsetHeight + parseFloat(m.marginTop) + box.offsetHeight + parseFloat(m.marginBottom));
+      store.set(K.listH, listPanelH);
+    }
+  }
+  setListPanelH(listPanelH);
+  fold = f;
+  $('panel').classList.toggle('listonly', fold === 'list');
+  $('panel').classList.toggle('folded', fold === 'folded');
+  $('fold').setAttribute('aria-expanded', String(fold !== 'folded'));
+  const next = { open: 'Show just the list', list: 'Hide the panel', folded: 'Show the panel' }[fold];
+  $('fold').title = `Tap: ${next.toLowerCase()}; drag to resize`;
+  $('fold').setAttribute('aria-label', `${next} (drag to resize)`);
+  store.set(K.fold, fold);
+}
+const stepFold = () => setFold(FOLDS[(FOLDS.indexOf(fold) + 1) % FOLDS.length]);
+function setPanelHeight(h) {
+  if (!tabMQ.matches || h == null) { $('panel').style.height = ''; return; }
+  $('panel').style.height = `${Math.max(160, clampPanelH(h))}px`;
+}
+let foldDrag = null, foldDragged = false;
+$('fold').addEventListener('pointerdown', (e) => {
+  if (!tabMQ.matches || e.button !== 0 || e.target.closest('button, input, .me')) return;
+  foldDrag = { y: e.clientY, h: $('panel').offsetHeight, moved: false };
+  foldDragged = false;
+  $('fold').setPointerCapture(e.pointerId);
+});
+$('fold').addEventListener('pointermove', (e) => {
+  if (!foldDrag) return;
+  const dy = foldDrag.y - e.clientY;
+  if (!foldDrag.moved && Math.abs(dy) < 6) return;   // still a tap
+  foldDrag.moved = true;
+  if (fold === 'folded') setFold('open');
+  if (fold === 'list') setListPanelH(foldDrag.h + dy);
+  else setPanelHeight(foldDrag.h + dy);
+});
+function endFoldDrag() {
+  if (foldDrag?.moved) { foldDragged = true; store.set(fold === 'list' ? K.listH : K.panelH, $('panel').offsetHeight); }
+  foldDrag = null;
+}
+$('fold').addEventListener('pointerup', endFoldDrag);
+$('fold').addEventListener('pointercancel', endFoldDrag);
+$('fold').addEventListener('keydown', (e) => { if ((e.key === 'Enter' || e.key === ' ') && e.target === $('fold')) { e.preventDefault(); stepFold(); } });
+$('fold').addEventListener('click', (e) => {
+  if (e.target.closest('button, input, .me')) return;   // the bell or your name, not the strip
+  if (foldDragged) { foldDragged = false; return; }   // that was a drag, not a tap
+  stepFold();
+});
+{ const f = store.get(K.fold, 'open'); setFold(f === true ? 'folded' : f); }   // (an older version stored true/false)
+
+// The limit area: a freehand shape, [[lat, lng], …] with unwrapped longitudes (see server.js).
+// The area itself is just its dashed outline; everything outside it is dimmed instead.
+const AREA_STYLE = { color: '#d93025', weight: 2, dashArray: '6 4', fill: false, interactive: false };
+const SHADE_STYLE = { stroke: false, fillColor: '#000', fillOpacity: 0.22, interactive: false };
+const MAX_AREA = 100;   // points kept after smoothing a stroke (the server takes up to 200)
+let areaLayer = null;
+function rectToArea([s, w, n, e]) { return [[s, w], [n, w], [n, e], [s, e]]; }   // older links and saved state
+const areaArr = () => (areaLayer ? areaLayer.getLatLngs()[0].map((ll) => [ll.lat, ll.lng]) : null);
+// Show the room's area (the server's; changes go through commitArea).
+let areaShade = null;   // a polygon covering the world with the area cut out of it
+function setArea(area) {
+  areaLayer?.remove(); areaShade?.remove();
+  areaLayer = area ? L.polygon(area, AREA_STYLE).addTo(map) : null;
+  areaShade = null;
+  if (area) {
+    // Area longitudes are unwrapped, so the outer ring spans a full turn either side of them.
+    const lngs = area.map(([, x]) => x), w = Math.min(...lngs) - 360, e = Math.max(...lngs) + 360;
+    areaShade = L.polygon([[[-85.06, w], [85.06, w], [85.06, e], [-85.06, e]], area], SHADE_STYLE).addTo(map);
+  }
+  // The Limit area button doubles as the signal that an area is set (unless it's mid-drawing).
+  $('draw').classList.toggle('set', !!area);
+  $('draw').title = area ? 'Pins only land inside the area. Click to clear it.' : 'Draw an area for pins to land in';
+  if (!map.getContainer().classList.contains('drawing')) $('draw').textContent = area ? 'Area limited ×' : 'Limit area';
+}
+
+// A user's area change, for the whole room.
+const commitArea = (area) => post({ type: 'area', area });
+
+const fitArea = () => map.fitBounds(areaLayer.getBounds().pad(0.15));
+
+// Same rule as the server: even-odd ray casting in Web Mercator (x = lng, y = mercY(lat)), where the
+// edges are drawn straight; area longitudes are unwrapped, so try the point's ±360 copies.
+const mercY = (lat) => Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360));
+function inArea(lat, lng) {
+  const area = areaArr();
+  if (!area) return true;
+  const y = mercY(lat), ys = area.map(([a]) => mercY(a));
+  return [-360, 0, 360].some((k) => {
+    const x = lng + k;
+    let inside = false;
+    for (let i = 0, j = area.length - 1; i < area.length; j = i++) {
+      const xi = area[i][1], xj = area[j][1];
+      if ((ys[i] > y) !== (ys[j] > y) && x < ((xj - xi) * (y - ys[i])) / (ys[j] - ys[i]) + xi) inside = !inside;
+    }
+    return inside;
+  });
+}
+
+
+// Initial view: the link's, then what this browser last showed, then Dhaka. The room (from the link,
+// or a new one) supplies the area; an old area-only link seeds a new room's area.
+let initialFit = null;
+const hash = parseHash();
+{
+  const view = hash.view || (hash.area ? null : store.get(K.view, null));
+  if (view) map.setView(view.center, view.zoom);
+  else {
+    initialFit = hash.area ? () => map.fitBounds(L.polygon(hash.area).getBounds().pad(0.15)) : () => map.fitBounds(DHAKA);
+    initialFit();
+  }
+}
+const fitSize = map.getSize();
+// A mis-sized first paint can leave a wrong zoom; refit once if the container changed size.
+window.addEventListener('load', () => {
+  map.invalidateSize();
+  if (initialFit && !map.getSize().equals(fitSize)) initialFit();
+}, { once: true });
+
+map.on('moveend', () => {
+  const c = map.getCenter();
+  store.set(K.view, { center: [c.lat, c.lng], zoom: map.getZoom() });
+  updateUrl();
+});
+window.addEventListener('hashchange', () => {
+  const h = parseHash();
+  if (h.room && h.room !== roomId) connect(h.room);   // a link without a room just keeps this one
+  if (h.view) map.setView(h.view.center, h.view.zoom);
+});
+
+// Reset: a map button (under the zoom buttons and map switch) back to the default view.
+const ResetControl = L.Control.extend({
+  options: { position: 'topleft' },
+  onAdd() {
+    const box = L.DomUtil.create('div', 'leaflet-bar resetc');
+    const a = L.DomUtil.create('a', '', box);
+    Object.assign(a, { href: '#', textContent: '⟲', title: 'Reset view' });
+    a.setAttribute('role', 'button');
+    a.setAttribute('aria-label', 'Reset view');
+    L.DomEvent.on(a, 'click', (e) => { L.DomEvent.preventDefault(e); map.fitBounds(DHAKA); });
+    L.DomEvent.disableClickPropagation(box);
+    return box;
+  },
+});
+
+/* ---------- transient notices ---------- */
+
+let noticeTimer = null;
+function notice(msg, ms = 4500) {
+  $('live').textContent = msg;
+  clearTimeout(noticeTimer);
+  noticeTimer = setTimeout(() => ($('live').textContent = ''), ms);
+}
+
+/* ---------- markers ---------- */
+
+// Player avatars: minidenticons (<1 KB, MIT) turns a player id into a small symmetric pixel avatar,
+// the same on every screen. Pins show their dropper's avatar; if the library can't load they keep
+// their numbers (numbers stay in the list, the card, chat links and the marker tooltip either way).
+let identicon = null;
+import('https://cdn.jsdelivr.net/npm/minidenticons@4.2.1/minidenticons.min.js')
+  .then((m) => { identicon = m.minidenticon; syncMarkers(); renderRoom(); })
+  .catch(() => {});
+// The SVG is built from the id's hash alone (no text from the id ends up in it), so it's safe as HTML.
+const avatarEl = (c, cls) => el('i', { className: cls, innerHTML: identicon(c) });
+
+function pinIcon(p, latest) {
+  const c = colorOf(p.by);
+  const pin = el('div', { className: 'pin' }, identicon ? avatarEl(p.by, 'av') : el('span', {}, String(p.n)));
+  if (c) pin.style.setProperty('--pc', c);
+  return L.divIcon({
+    className: 'pin-icon' + (latest ? ' latest' : '') + (c ? ' owned' : '') + (p.manual ? ' manual' : ''),
+    // .size scales with votes; .drop is animated separately (bounce), so they must not share a transform
+    html: el('div', { className: 'size' }, el('div', { className: 'drop' }, pin), el('b', { className: 'vb', hidden: true })),
+    iconSize: [30, 30],
+    iconAnchor: [15, 32],
+  });
+}
+
+// Votes count as a share of the people voting, so the same +2 says more in a room of 4 than of 10,
+// and everyone agreeing is the biggest a pin gets. √ makes the first vote or two already obvious
+// (+1 of 8 ≈ 1.5×, +4 of 8 ≈ 2×, all 8 ≈ 2.4×); downvoted pins shrink and fade instead.
+function voterCount() {
+  const who = new Set(room.online);
+  for (const p of pins) for (const c of Object.keys(p.votes)) who.add(c);   // votes from people who left still count
+  return Math.max(who.size, 2);
+}
+function voteLook(s, n) {
+  const f = Math.max(-1, Math.min(1, s / n)), r = Math.sqrt(Math.abs(f));
+  return f >= 0 ? { scale: 1 + 1.4 * r, opacity: 1 } : { scale: 1 - 0.45 * r, opacity: 1 - 0.5 * r };
+}
+function sizeMarker(m, p, n) {
+  const s = m.getElement()?.querySelector('.size');
+  if (!s) return;
+  const sc = score(p), { scale, opacity } = voteLook(sc, n);
+  s.style.transform = `scale(${scale})`;
+  s.style.opacity = opacity;
+  s.classList.toggle('neg', sc < 0);
+  const b = s.querySelector('.vb');
+  b.hidden = !sc;
+  b.textContent = sc > 0 ? `+${sc}` : String(sc);
+  b.classList.toggle('down', sc < 0);
+  b.style.transform = `scale(${1 / scale})`;
+}
+
+function bounce(marker) {
+  const d = marker?.getElement()?.querySelector('.drop');
+  if (d) d.animate(
+    [{ transform: 'translateY(-36px)', opacity: 0 }, { transform: 'none', opacity: 1 }],
+    { duration: 380, easing: 'cubic-bezier(.2,.8,.3,1.25)' });
+}
+
+// Make the map's markers match `pins`; animate the ids in `animate`.
+function syncMarkers(animate = []) {
+  const ids = new Set(pins.map((p) => p.id)), n = voterCount();
+  for (const [id, m] of markers) if (!ids.has(id)) { m.remove(); markers.delete(id); }
+  pins.forEach((p, i) => {
+    let m = markers.get(p.id);
+    if (!m) {
+      m = L.marker([p.lat, p.lng], { title: `#${p.n}` }).addTo(map);
+      m.on('click', () => select(p.id, false));
+      markers.set(p.id, m);
+    } else if (m.getLatLng().lat !== p.lat || m.getLatLng().lng !== p.lng) m.setLatLng([p.lat, p.lng]);   // a moved pin
+    const sig = `${p.n}|${i === 0}|${colorOf(p.by)}|${!!identicon}`;
+    if (m._sig !== sig) { m.setIcon(pinIcon(p, i === 0)); m._sig = sig; }
+    if (m._label !== (p.label || '')) {
+      m._label = p.label || '';
+      m.unbindTooltip();
+      if (m._label) m.bindTooltip(el('span', {}, m._label), { permanent: true, direction: 'bottom', offset: [0, 2], className: 'pin-tag', opacity: 1 });
+    }
+    sizeMarker(m, p, n);
+    m.setZIndexOffset(i === 0 ? 1000 : Math.max(0, score(p)) * 10);   // popular pins sit on top
+    if (animate.includes(p.id)) bounce(m);
+  });
+}
+
+// One pin per spot: a pin within MERGE_M of an existing one merges into it (see server.js).
+const MERGE_M = 100;   // same as the server
+function meters(aLat, aLng, bLat, bLng) {   // great-circle distance; longitudes may differ by a turn
+  const rad = Math.PI / 180, dLng = ((((bLng - aLng) % 360) + 540) % 360) - 180;
+  const h = Math.sin(((bLat - aLat) * rad) / 2) ** 2 + Math.cos(aLat * rad) * Math.cos(bLat * rad) * Math.sin((dLng * rad) / 2) ** 2;
+  return 2 * 6371000 * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+function nearestPin(lat, lng) {
+  let near = null, best = MERGE_M;
+  for (const p of pins) { const d = meters(lat, lng, p.lat, p.lng); if (d <= best) { best = d; near = p; } }
+  return near;
+}
+
+// A merge, for everyone in the room: a ghost pin slides from where it was placed into the pin it
+// joined, which pulses, and a short note says what happened. Yours also selects that pin.
+function showMerge(m) {
+  const marker = markers.get(m.id), target = pins.find((p) => p.id === m.id);
+  if (marker) {
+    const a = map.latLngToContainerPoint([m.lat, m.lng]), b = map.latLngToContainerPoint(marker.getLatLng());
+    const ghost = el('div', { className: 'ghost' });
+    ghost.style.cssText = `left:${a.x}px;top:${a.y}px;--pc:${colorOf(m.by) || '#8e24aa'}`;
+    cont.append(ghost);
+    ghost.animate(
+      [{ transform: 'translate(-50%, -100%)', opacity: 0.85 }, { transform: `translate(calc(-50% + ${b.x - a.x}px), calc(-100% + ${b.y - a.y}px)) scale(.5)`, opacity: 0 }],
+      { duration: 600, easing: 'cubic-bezier(.4,0,.2,1)' },
+    ).finished.then(() => {
+      ghost.remove();
+      marker.getElement()?.querySelector('.drop')?.animate(
+        [{ transform: 'scale(1)' }, { transform: 'scale(1.35)' }, { transform: 'scale(1)' }].map((k) => ({ ...k, transformOrigin: '50% 100%' })),
+        { duration: 450, easing: 'ease-out' });
+    });
+  }
+  const name = `#${m.n}${target?.label ? ` ${target.label}` : ''}`;
+  if (m.by === cid) {
+    selectedId = m.id;
+    renderList();
+    mapNote(`Merged into ${name}${m.upvoted ? ' · +1' : ' (already voted)'}`);
+  } else mapNote(`${nameOf(m.by)}'s pin merged into ${name}`);
+}
+
+// Uniform in screen space (Web Mercator), so pins don't bunch toward the poles in tall areas:
+// random points in the area's bounding box (or the visible map) until one is inside the shape.
+// Bounds are unwrapped, so areas crossing the antimeridian work; wrapLatLng folds the result back.
+// Prefers spots at least MERGE_M from every pin, so a drop is a new place rather than a merge; when
+// the area has none left, the first spot inside it (which then merges into its nearest pin).
+function randomPoint() {
+  const Z = 20, b = areaLayer ? areaLayer.getBounds() : map.getBounds();
+  const a = map.project(b.getNorthWest(), Z), c = map.project(b.getSouthEast(), Z);
+  const tries = Math.min(5000, Math.ceil(400000 / (pins.length + 1)));   // bound the distance checks
+  let fallback = null;
+  for (let i = 0; i < tries; i++) {
+    const ll = map.wrapLatLng(map.unproject(L.point(a.x + Math.random() * (c.x - a.x), a.y + Math.random() * (c.y - a.y)), Z));
+    const p = { lat: Math.max(-85, Math.min(85, ll.lat)), lng: ll.lng };
+    if (!inArea(p.lat, p.lng)) continue;   // the server runs the same test
+    if (!nearestPin(p.lat, p.lng)) return p;
+    fallback ??= p;
+  }
+  return fallback;   // null: a sliver too thin to hit
+}
+
+/* ---------- boot ---------- */
+
+fetch('/api/info').then((r) => r.json()).then((i) => { serverInfo = i; }).catch(() => {});
+syncMarkers();
+renderList();
+renderRoom();
+connect(hash.room || roomCode(), hash.room ? null : hash.area);   // no room in the link: a new one
+// Back to the view (Space or Time) and, in the stacked layouts, the tab that were open.
+{
+  const s = store.get(K.tab, null);
+  if (s?.view === 'time' || s?.view === 'space') setView(s.view);
+  if (tabMQ.matches && ['pins', 'time', 'chat'].includes(s?.tab)) setTab(s.tab);
+}
+updateUrl();
+if (store.get(K.tut, false)) locate(); else tutorial(locate);   // ask for location after the tutorial, not over it
 </script>
 </body>
 </html>
