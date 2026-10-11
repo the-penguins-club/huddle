@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Huddle</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script>
+</script>
+<style>
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="map" role="application" aria-label="Map"></div>
+  <section id="time" hidden aria-label="When everyone is free">
+    <div id="tgrid" title="Drag over the hours you're free. On touch: hold, then drag; a tap marks one hour."></div>
+  </section>
+  <aside id="panel">
+    <div id="fold" role="button" tabindex="0" aria-expanded="true" aria-controls="panel"><span id="foldmute"></span><span id="foldtxt" class="gface" aria-hidden="true"><i class="eye"></i><i class="beak"></i><i class="eye"></i></span><span id="foldme"></span></div>
+    <div id="scroller">
+    <header>
+      <div class="h1row"><h1><input id="hname" class="inline-edit" maxlength="80" placeholder="Huddle" autocomplete="off" spellcheck="false" aria-label="This huddle's name (its calendar event's title)" title="This huddle's name, and its calendar event's title: click to change it"></h1><button id="help" class="btn round" type="button" title="Show the tutorial" aria-label="Show the tutorial">?</button><button id="theme" class="btn round" type="button"></button><div id="views" class="seg" role="tablist" aria-label="View"><button type="button" role="tab" data-v="space" aria-selected="true">Space</button><button type="button" role="tab" data-v="time" aria-selected="false">Time</button></div></div>
+      <div class="droprow">
+        <button id="drop" class="btn primary sp">Drop random pin</button>
+        <div class="tools tm">
+          <button id="tany" class="btn" type="button" aria-pressed="false" title="Count me as free at every hour">Free anytime</button>
+          <button id="tskip" class="btn" type="button" aria-pressed="false" title="Leave my hours out (I can still vote)">Skip</button>
+          <button id="tlimit" class="btn" type="button" aria-pressed="false">Limit time</button>
+        </div>
+        <button id="share" class="btn icon" type="button" title="Copy share link" aria-label="Copy share link"></button>
+      </div>
+      <div class="tools sp">
+        <button id="place" class="btn" type="button" aria-pressed="false">Place a pin</button>
+        <button id="draw" class="btn" type="button" aria-pressed="false">Limit area</button>
+      </div>
+      <div id="room" hidden>
+        <div class="rowline"><span id="dot" class="dot"></span><span id="roomtxt" class="grow"></span><button id="onlinebtn" class="link" type="button" aria-expanded="false" aria-controls="members" hidden></button><button id="leave" class="link" type="button" title="Start a new, empty huddle">New huddle</button></div>
+        <div id="members" class="float" hidden></div>
+        <div id="pick" hidden></div>
+        <p id="roomhelp" hidden></p>
+      </div>
+      <p id="live" aria-live="polite"></p>
+    </header>
+    <section id="tside" aria-label="Time">
+      <p id="tpeople"></p>
+      <div class="listbox">
+        <div class="listhead"><span id="tcount">Times</span><span class="rt"><button id="tclear" class="link" type="button">Clear mine</button></span></div>
+        <div class="listscroll"><ol id="tlist" class="list"></ol></div>
+      </div>
+      <div class="tkey" aria-hidden="true"><span><i class="k0"></i>nobody</span><span><i class="k1"></i>1</span><span><i class="k2"></i>2+</span><span><i class="ka"></i>everyone</span><span><i class="kt"></i>most votes</span><span id="ttz"></span></div>
+    </section>
+    <div class="listbox sp">
+      <div class="listhead"><span id="count">History</span><span class="rt"><button id="sort" class="link" type="button">Sort: newest</button><button id="clear" class="link" type="button" hidden>Clear all</button></span></div>
+      <div class="listscroll"><ol id="list" class="list"></ol></div>
+    </div>
+    </div>
+    <section id="chat" aria-label="Room chat">
+      <div class="chatbar" title="Drag to resize · double-click to reset"><span id="mebox"><span class="me" id="me" title="You: click to rename"><input id="myname" class="inline-edit strong" maxlength="16" autocomplete="off" spellcheck="false" aria-label="Your name"></span></span><span class="gface" aria-hidden="true"><i class="eye"></i><i class="beak"></i><i class="eye"></i></span><span class="rt"><button id="mute" type="button"></button></span></div>
+      <ol id="msgs" aria-live="polite"></ol>
+      <form id="chatform" autocomplete="off">
+        <button id="peoplebtn" class="btn" type="button" aria-expanded="false" aria-controls="members" title="Who's here (click a name to mention them)"></button>
+        <input id="chatin" class="field" maxlength="500" placeholder="Message (#3 links pin 3)" aria-label="Message" enterkeyhint="send">
+      </form>
+    </section>
+  </aside>
+</div>
+<nav id="tabs" role="tablist">
+  <button id="tabpins" type="button" role="tab" aria-selected="true">Space</button>
+  <button id="tabtime" type="button" role="tab" aria-selected="false" aria-controls="time">Time</button>
+  <button id="tabchat" type="button" role="tab" aria-selected="false" aria-controls="chat">Chat</button>
+</nav>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+</script>
+</body>
+</html>
