@@ -82,6 +82,56 @@
   #map { flex: 1; min-width: 0; background: var(--card); }
   body.view-time #map { display: none; }
 
+  /* The panel: the controls (header) and the lists scroll together; the chat sits under them. */
+  #panel { position: relative; z-index: 1; width: 360px; min-height: 0; display: flex; flex-direction: column; border-left: 1px solid var(--line-strong); background: var(--bg); }
+  #fold { display: none; }   /* stacked layouts only */
+  #scroller { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow-y: auto; background: var(--inset); }   /* the controls, then the list box, which fills the rest and scrolls itself */
+  #scroller > header { flex: none; padding: 12px 16px 0; }   /* on the same well as the list, so the list box is what stands out */
+  .h1row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  #theme { margin-right: auto; }   /* Space | Time goes to the right */
+  #views { display: none; }   /* desktop only; the stacked layouts have tabs */
+  .droprow { display: flex; gap: 6px; }
+  .droprow > .btn.primary { flex: 1; min-width: 0; }
+  .tools { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .tools > .btn { flex: 1 1 auto; }
+  .droprow > .tools { flex: 1; min-width: 0; margin-top: 0; }   /* Time: its buttons share the first row with the link button */
+  /* each view shows its own buttons (.sp: Space, .tm: Time) and its own list */
+  .tm { display: none !important; }
+  body.view-time .tm { display: flex !important; }
+  body.view-time .sp { display: none !important; }
+  #list .lbl { font-weight: 600; }
+  #list .mine { cursor: text; }
+  #list .mine:hover { text-decoration: underline dotted; }
+  #list li.latest .num { background: var(--acc-grad); color: #fff; }
+  #list li.owned .num { background: var(--pc); color: #fff; }
+
+  /* The room box: status, people, and the pick. */
+  #room { position: relative; margin-top: 10px; font-size: var(--fs-m); }
+  .rowline { display: flex; align-items: center; gap: 8px; }
+  .rowline .grow { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--mut); }
+  .dot.live { background: var(--ok); }
+  .dot.reconnecting, .dot.connecting { background: var(--warn); }
+  .dot.offline { background: var(--acc); }
+  #onlinebtn { white-space: nowrap; }
+  /* "N online ▾": the room's people, online first, then those who've been here */
+  #members { position: absolute; z-index: 5; top: calc(100% + 4px); left: 0; right: 0; max-height: 260px; overflow-y: auto; padding: 4px 0; }
+  #chatform #members { top: auto; bottom: calc(100% + 4px); left: 8px; right: 8px; }   /* opened from the chat: above its message box */
+  /* while it's open, the rest of its pane (the controls and lists, or the chat) is dimmed and out of reach;
+     a click there closes it */
+  #scroller, #chat { position: relative; }
+  #scrim { position: absolute; inset: 0; z-index: 4; background: color-mix(in srgb, var(--bg) 60%, transparent); backdrop-filter: blur(1px); }
+  #members h4 { margin: 6px 10px 2px; color: var(--mut); font-size: var(--fs-xs); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+  #members .m { display: flex; align-items: center; gap: 8px; padding: 4px 10px; }
+  #members .m.off { opacity: .55; }
+  #members .m.can { cursor: pointer; }
+  #members .m.can:hover { background: var(--hover); }
+  #members .alone { padding: 4px 10px; color: var(--mut); font-size: var(--fs-s); }
+  #roomhelp { margin: 8px 0 0; color: var(--acc); font-size: var(--fs-s); }
+  #roomhelp code { font-size: var(--fs-xs); }
+  #live { margin: 8px 0 0; color: var(--mut); font-size: var(--fs-s); }
+  #live:empty { display: none; }
+
   /* The map: drawing and placing cursors, the Google base map, Leaflet's controls, and the pins. */
   #map.drawing, #map.drawing .leaflet-interactive { cursor: crosshair !important; touch-action: none !important; }
   #map.placing, #map.placing .leaflet-interactive, #map.placing .leaflet-marker-icon { cursor: crosshair !important; }
@@ -555,6 +605,40 @@ map.on('click', (e) => {
 });
 $('place').addEventListener('click', () => setPlaceMode(!placeMode));
 
+/* ---------- share ---------- */
+
+function shareUrl() {
+  updateUrl();
+  const u = new URL(location.href);
+  // localhost links are useless to anyone else: swap in the LAN address when the server exposes one.
+  if (serverInfo?.lan?.length && /^(localhost|127\.0\.0\.1)$/.test(u.hostname)) u.hostname = serverInfo.lan[0];
+  return u;
+}
+
+let shareTimer = null;
+// navigator.clipboard needs a secure context (not plain-http LAN addresses); fall back to execCommand.
+async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); return true; } catch {}
+  const t = el('textarea', { value: text }); document.body.append(t); t.select();
+  let ok = false;
+  try { ok = document.execCommand('copy'); } catch {}
+  t.remove();
+  return ok;
+}
+
+const LINK_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>';
+$('share').innerHTML = LINK_ICON;
+// An icon button: it flashes ✓ (or ✗), and the note line says what happened.
+$('share').addEventListener('click', async () => {
+  const u = shareUrl(), href = u.href;
+  const ok = await copyText(href);
+  const local = /^(localhost|127\.0\.0\.1)$/.test(u.hostname);
+  $('share').textContent = ok ? '✓' : '✗';
+  notice(!ok ? 'Could not copy: use the address bar.' : local ? 'Link copied (works on this machine only).' : 'Share link copied.');
+  clearTimeout(shareTimer);
+  shareTimer = setTimeout(() => ($('share').innerHTML = LINK_ICON), 1500);
+});
+
 /* ---------- transient notices ---------- */
 
 let noticeTimer = null;
@@ -851,6 +935,224 @@ function select(id, pan) {
   else if (map.getZoom() < z) map.setZoomAround([p.lat, p.lng], z);
   bounce(markers.get(id));
 }
+
+/* ---------- actions: sent to the server, which broadcasts the new state ---------- */
+
+// Resolves to the error message, or null when the server took the action.
+async function post(action) {
+  let err = null;
+  try {
+    const r = await fetch(`/api/rooms/${roomId}/action`, {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ cid, ...action }),
+    });
+    if (!r.ok) err = (await r.json().catch(() => ({}))).error || `Server error ${r.status}`;
+  } catch { err = 'Offline: that action was not sent.'; }
+  if (err) notice(err);
+  return err;
+}
+
+function dropPin() {
+  const pt = randomPoint();
+  if (!pt) return notice('Could not find a spot inside the limit area. Try drawing a wider one.');
+  post({ type: 'drop', lat: pt.lat, lng: pt.lng });
+}
+
+function placePin(lat, lng) {
+  if (!inArea(lat, lng)) { notice('That spot is outside the limit area.'); return; }   // stay in place mode
+  setPlaceMode(false);
+  post({ type: 'place', lat, lng });
+}
+
+function vote(p, v) {
+  const nv = myVote(p) ? 0 : v;   // a vote steps through 0: either arrow takes back yours, then ▲ +1 / ▼ −1
+  post({ type: 'vote', pin: p.id, v: nv });
+}
+
+function removePin(id) {
+  if (selectedId === id) selectedId = null;
+  post({ type: 'delete', pin: id });
+}
+
+// Two-step confirm inline: native confirm() is silently suppressed in some
+// embedded browsers / after "prevent additional dialogs", which made this a no-op.
+let clearTimer = null;
+function resetClearBtn() { clearTimeout(clearTimer); clearTimer = null; renderList(); }
+$('clear').addEventListener('click', () => {
+  const mine = pins.filter((p) => p.by === cid).length;
+  if (!clearTimer) {
+    $('clear').textContent = `Click again to delete ${mine}`;
+    clearTimer = setTimeout(resetClearBtn, 3000);
+    return;
+  }
+  clearTimeout(clearTimer); clearTimer = null;
+  selectedId = null;
+  post({ type: 'clearMine' });
+  renderList();
+});
+
+$('drop').addEventListener('click', dropPin);
+
+/* ---------- multiplayer ---------- */
+
+function renderRoom() {
+  document.body.classList.toggle('inroom', !!roomId);
+  $('room').hidden = !roomId;
+  if (!roomId) return;
+  $('dot').className = 'dot ' + status;
+  const n = room.online.length;
+  $('roomtxt').textContent = status === 'live' ? roomId
+    : status === 'offline' ? `${roomId} · not connected` : `${roomId} · connecting…`;
+  $('roomtxt').title = 'This huddle\'s id: it\'s in the link';
+  $('onlinebtn').hidden = status !== 'live';
+  $('onlinebtn').textContent = `${n} online ${membersOpen === 'room' ? '▴' : '▾'}`;
+  $('onlinebtn').setAttribute('aria-expanded', String(membersOpen === 'room'));
+  $('peoplebtn').innerHTML = `${PEOPLE_ICON}<span>${n}</span>`;
+  $('peoplebtn').setAttribute('aria-label', `${n} online: who's here`);
+  $('peoplebtn').setAttribute('aria-expanded', String(membersOpen === 'chat'));
+  $('roomhelp').textContent = status === 'live' ? '' : helpText;
+  $('roomhelp').hidden = !$('roomhelp').textContent;
+  // Everyone, in the people list (with their avatars).
+  const face = (c) => {
+    const d = identicon ? avatarEl(c, 'av face') : el('i', { className: 'face' });
+    d.style[identicon ? 'borderColor' : 'background'] = room.players[c]?.color || 'gray';
+    return d;
+  };
+  $('members').hidden = scrim.hidden = !membersOpen || status !== 'live';
+  if ($('members').hidden) return;
+  const host = membersOpen === 'chat' ? $('chatform') : $('room');   // under "N online", or above the message box
+  if ($('members').parentElement !== host) host.append($('members'));
+  const pane = membersOpen === 'chat' ? $('chat') : $('scroller');   // a modal within that pane
+  if (scrim.parentElement !== pane) pane.append(scrim);
+  const row = (c, off) => {
+    const r = el('div', { className: 'm' + (off ? ' off' : '') + (c === cid ? '' : ' can'), title: c === cid ? '' : 'Mention in chat' }, face(c), c === cid ? `${myName} (you)` : nameOf(c));
+    if (c !== cid) r.addEventListener('click', () => mention(c));
+    return r;
+  };
+  const on = [cid, ...room.online.filter((c) => c !== cid)];
+  const gone = Object.keys(room.players).filter((c) => !room.online.includes(c));
+  $('members').replaceChildren(
+    el('h4', {}, `Online · ${on.length}`), ...on.map((c) => row(c, false)),
+    ...(on.length === 1 ? [el('div', { className: 'alone' }, 'Nobody else yet: copy the share link')] : []),
+    ...(gone.length ? [el('h4', {}, `Was here · ${gone.length}`), ...gone.map((c) => row(c, true))] : []));
+}
+
+// The people list opens from "N online" in the room box, or from the people button by the message box.
+const PEOPLE_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18.5 14.5a6.5 6.5 0 0 1 3 5.5"/></svg>';
+let membersOpen = false;   // false, 'room' or 'chat': where it's open
+const scrim = el('div', { id: 'scrim', hidden: true });
+$('onlinebtn').addEventListener('click', () => { membersOpen = membersOpen === 'room' ? false : 'room'; renderRoom(); });
+$('peoplebtn').addEventListener('click', () => { membersOpen = membersOpen === 'chat' ? false : 'chat'; renderRoom(); });
+document.addEventListener('click', (e) => {   // a click anywhere else closes it
+  if (membersOpen && !e.target.closest('#members, #onlinebtn, #peoplebtn')) { membersOpen = false; renderRoom(); }
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && membersOpen) { e.stopImmediatePropagation(); membersOpen = false; renderRoom(); }
+}, true);
+
+$('myname').value = myName;
+// The box is as wide as the name (on phones, where its CSS width is auto), so it hugs the right edge.
+const fitName = () => { $('myname').size = Math.max(6, $('myname').value.length + 1); };
+fitName();
+$('myname').addEventListener('input', fitName);
+$('myname').addEventListener('change', () => {
+  const v = $('myname').value.replace(/\s+/g, ' ').trim().slice(0, 16);   // (the server's MAX_NAME)
+  if (!v) { $('myname').value = myName; fitName(); return; }
+  myName = v; store.set(K.name, v);
+  if (roomId) post({ type: 'rename', name: v });
+});
+
+let firstState = true, seedArea = null, fitOnFirst = false, helpText = '';
+
+function applyState(s) {
+  const first = firstState; firstState = false;
+  const prev = new Map(pins.map((p) => [p.id, p]));
+  const wasOnline = new Set(room.online);
+  room.players = s.players; room.online = s.online;
+  if (!first) presence(wasOnline, new Set(s.online));
+  pins = s.pins.map(normalize);
+
+  // Area: server is the source of truth. A room's creator seeds it once with their current area.
+  const same = JSON.stringify(s.area) === JSON.stringify(areaArr());
+  if (first && seedArea && !s.area) post({ type: 'area', area: seedArea });
+  else if (!same) {
+    setArea(s.area);
+    if (!first && s.areaBy !== cid) notice(`${nameOf(s.areaBy)} ${s.area ? 'updated' : 'cleared'} the area`);
+  }
+  if (first && fitOnFirst && s.area) fitArea();
+  if (first) seedArea = null;
+
+  // "fresh" = new pins plus pins that moved (same id, new spot)
+  const fresh = first ? [] : pins.filter((p) => { const o = prev.get(p.id); return !o || o.lat !== p.lat || o.lng !== p.lng; });
+  const mine = fresh.find((p) => p.by === cid);
+  if (mine) { selectedId = mine.id; showNewest(); }
+  const theirs = fresh.filter((p) => p.by !== cid);
+  if (theirs.length) {
+    const t = theirs[0];
+    notice(`${nameOf(t.by)} ${prev.has(t.id) ? `moved their pin #${t.n}` : `dropped pin #${t.n}`}${theirs.length > 1 ? ` (+${theirs.length - 1})` : ''}`);
+  }
+  syncMarkers(fresh.map((p) => p.id));
+  renderList();
+  renderRoom();
+  const sig = JSON.stringify(s.players);   // chat names follow renames
+  if (sig !== chatSig) { chatSig = sig; renderChat(); }
+  refreshPinRefs();   // labels and owners behind "#n" links
+  room.range = s.range; room.avail = s.avail || {}; room.tstat = s.tstat || {}; room.tvotes = s.tvotes || {}; room.event = s.event; renderHname();
+  renderTime();
+}
+
+function connect(id, seed = null) {
+  for (const t of leaving.values()) clearTimeout(t);   // pending "left" notes belong to the old room
+  leaving.clear();
+  es?.close();
+  roomId = id; seedArea = seed; firstState = true; status = 'connecting';
+  fitOnFirst = !parseHash().view;
+  room = { players: {}, online: [] };
+  pins = []; selectedId = null; chat = []; chatSig = '';
+  syncMarkers(); renderList(); renderRoom(); renderChat();
+  es = new EventSource(`/api/rooms/${id}/events?${new URLSearchParams({ cid, name: myName })}`);
+  es.addEventListener('state', (e) => { status = 'live'; helpText = ''; applyState(JSON.parse(e.data)); });
+  // Full history on every (re)connect, then one message per event.
+  es.addEventListener('merge', (e) => showMerge(JSON.parse(e.data)));
+  es.addEventListener('chat', (e) => {
+    const d = JSON.parse(e.data);
+    if (d.msg) addMsg(d.msg);
+    else { chat = d.history; renderChat(); }
+  });
+  es.onerror = () => {
+    const closed = es.readyState === EventSource.CLOSED;   // browser gave up (bad status / content type)
+    status = closed ? 'offline' : 'reconnecting';
+    helpText = closed ? 'Checking why…' : '';
+    renderRoom();
+    if (closed) diagnose(id).then((msg) => { if (roomId === id && status === 'offline') { helpText = msg; renderRoom(); } });
+  };
+}
+
+const RUN_HINT = 'Run `node server.js` in the random-pin folder and open the URL it prints.';
+
+// Work out *why* the stream failed, so the message says what to fix.
+async function diagnose(id) {
+  if (location.protocol === 'file:') return `This page was opened as a file. ${RUN_HINT}`;
+  try { serverInfo = await (await fetch('/api/info')).json(); } catch {
+    return `${location.host} is not running server.js (static files only, e.g. python -m http.server). ${RUN_HINT}`;
+  }
+  const ac = new AbortController();
+  try {
+    const r = await fetch(`/api/rooms/${id}/events?cid=${cid}`, { signal: ac.signal });
+    ac.abort();
+    return r.ok
+      ? 'The server is up but the live stream is being cut off. A proxy or tunnel in front of it may be buffering event streams.'
+      : `The server refused this room (HTTP ${r.status}).`;
+  } catch { return 'Could not reach the server.'; }
+}
+
+// A fresh room, empty and with a new link; the old one carries on for whoever's still in it.
+function newRoom() {
+  setTab('pins'); setView('space');
+  connect(roomCode());
+  updateUrl();
+  notice('New huddle. The link button next to Drop copies an invite link.');
+}
+$('leave').addEventListener('click', newRoom);
 
 /* ---------- boot ---------- */
 
