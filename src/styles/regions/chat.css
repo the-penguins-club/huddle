@@ -1,0 +1,36 @@
+  /* The chat: an IRC-style log, sized for a narrow panel. */
+  #chat { flex: 1; min-height: 90px; display: flex; flex-direction: column; background: var(--chat); }
+  .chatbar { position: relative; display: flex; justify-content: space-between; align-items: center; padding: 4px 16px; border-bottom: 1px solid var(--line); background: linear-gradient(180deg, color-mix(in srgb, var(--acc2) 10%, var(--card)), color-mix(in srgb, var(--acc2) 5%, var(--card))); color: var(--acc2); font-size: var(--fs-s); font-weight: 700; }
+  .chatbar .rt { order: -1; display: flex; align-items: center; gap: 8px; }   /* controls on the left, your name on the right */
+  /* the grip in the middle; your name hugging the right edge, sized to it (see fitName) and never
+     reaching the grip ("…" if it's that long) */
+  .chatbar .gface { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); }
+  .chatbar #mebox { display: flex; justify-content: flex-end; min-width: 0; max-width: calc(50% - 44px); }
+  .chatbar .me .inline-edit { width: auto; min-width: 0; text-align: right; text-overflow: ellipsis; }
+  #mute { padding: 0 2px; border: 0; background: none; font-size: var(--fs-m); line-height: 1; opacity: .85; }
+  #mute:hover { opacity: 1; }
+  /* you: avatar and your name, editable in place */
+  .me { display: inline-flex; align-items: center; gap: 5px; min-width: 0; }
+  .me .inline-edit { width: 12ch; padding: 1px 5px; font-size: var(--fs-s); }
+  /* "<nick> text", wrapped lines indented a little */
+  #msgs { flex: 1; min-height: 0; overflow-y: auto; margin: 0; padding: 6px 0; list-style: none; font: 12.5px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  #msgs li { padding: 0 8px 0 calc(8px + 2ch); text-indent: -2ch; overflow-wrap: anywhere; }
+  #msgs li.sys { color: var(--mut); }
+  #msgs li.mention { background: color-mix(in srgb, var(--acc) 12%, transparent); box-shadow: inset 3px 0 var(--acc); }
+  #msgs .pinref { font: inherit; font-weight: 700; }
+  /* nicks in the person's colour; on the dark theme lightened, so dark colours (navy, near-black) stay readable */
+  .nick { color: var(--pc, var(--fg)); font-weight: 700; }
+  :root[data-theme="dark"] .nick { color: color-mix(in srgb, var(--pc, #fff) 55%, #fff); }
+  .nick.can { cursor: pointer; }
+  .nick.can:hover { text-decoration: underline; }
+  .at { color: var(--acc); font-weight: 700; }
+  .at.me { padding: 0 2px; border-radius: 3px; background: color-mix(in srgb, var(--acc) 22%, transparent); }
+  .pinref { padding: 0; border: 0; background: none; color: var(--acc); font-weight: 600; text-decoration: underline; }
+  .pinref .pedit { display: inline-block; margin-left: 3px; text-decoration: none; opacity: .75; }   /* your own pins: edit the label */
+  #chatform { position: relative; display: flex; gap: 6px; padding: 8px 12px; border-top: 1px solid var(--line); background: var(--bg); }
+  #chatform .field { flex: 1; }
+  #peoplebtn { flex: none; gap: 4px; padding: 0 8px; color: var(--mut); font-variant-numeric: tabular-nums; }
+  #peoplebtn svg { width: 15px; height: 15px; }
+  #tabs { display: none; }   /* stacked layouts only */
+  body:not(.inroom) :is(#chat, #tabs) { display: none; }
+
