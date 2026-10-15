@@ -75,6 +75,11 @@
   h1 .inline-edit::placeholder { color: var(--fg); font-size: inherit; font-weight: inherit; opacity: 1; }
   .h1row h1 { min-width: 0; }
 
+  /* Avatars: a person's identicon in a ring of their colour (the pins draw their own, see the map). */
+  .face { position: relative; flex: none; width: 18px; height: 18px; overflow: hidden; border: 2px solid; border-radius: 50%; background: #fff; }
+  .face svg { width: 20px; height: 20px; }
+  .av svg { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); }   /* centred, so any clipping is even */
+
   /* ---------- 4. regions ---------- */
 
   /* fixed + inset follows the *visible* viewport, so mobile browser chrome can't push the layout off-screen */
