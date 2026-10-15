@@ -1,0 +1,13 @@
+  /* ---------- 5. layouts ---------- */
+
+  /* Desktop: the panel at the side, as two panes on the canvas (controls and lists, then the chat; drag
+     the chat's title bar to resize). */
+  @media (min-width: 961px) {
+    body.inroom #views { display: flex; }
+    #panel { gap: 8px; padding: 8px; background: var(--canvas); box-shadow: -1px 0 0 var(--line); }
+    #scroller, #chat { border: 1px solid var(--line); border-radius: var(--r-l); box-shadow: var(--sh-2); }
+    #scroller { flex: 2.2 1 0; }   /* by default the lists get most of the column */
+    #chat { overflow: hidden; }
+    .chatbar { padding: 5px 8px 5px 16px; cursor: row-resize; touch-action: none; user-select: none; }
+  }
+
