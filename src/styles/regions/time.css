@@ -1,0 +1,43 @@
+  /* Time: a calendar of days × hours (the main area) everyone paints their free hours on. A day is one
+     continuous column; back-to-back hours in the same state join into one block, rounded at its ends,
+     and your own hours get one outline per run. The day and hour labels stay put while it scrolls; touch
+     scrolls it (painting on touch starts with a press-and-hold, see the code). */
+  #time { flex: 1; min-width: 0; overflow: auto; padding: 0 12px 16px 0; background: var(--canvas); }
+  #tgrid { --rowh: 22px; width: max-content; min-width: 100%; display: grid; column-gap: 4px; row-gap: 0; user-select: none; -webkit-user-select: none; touch-action: pan-x pan-y; }
+  #tgrid .dh, #tgrid .hh, #tgrid > div:first-child { background: var(--canvas); }
+  #tgrid .dh { position: sticky; top: 0; z-index: 2; padding: 10px 0 4px; color: var(--mut); font-size: var(--fs-s); font-weight: 600; text-align: center; white-space: nowrap; }
+  #tgrid .hh { position: sticky; left: 0; z-index: 1; padding: 0 6px 0 12px; color: var(--mut); font-size: var(--fs-xs); line-height: var(--rowh); text-align: right; font-variant-numeric: tabular-nums; }
+  #tgrid > div:first-child { position: sticky; left: 0; top: 0; z-index: 3; }
+  #tgrid .c { position: relative; height: var(--rowh); background: var(--card); color: var(--t-text); font-size: 10px; font-weight: 600; line-height: var(--rowh); text-align: center; cursor: pointer; }
+  #tgrid .c.nofree { background-image: linear-gradient(rgba(127, 127, 127, .14) 1px, transparent 1px); }   /* faint hour lines */
+  #tgrid .c.one { background: var(--t-one); }
+  #tgrid .c.some { background: var(--t-some); }
+  #tgrid .c.all { background: var(--t-all); }
+  #tgrid .c:is(.first, .runtop) { border-top-left-radius: var(--r-s); border-top-right-radius: var(--r-s); }
+  #tgrid .c:is(.last, .runend) { border-bottom-left-radius: var(--r-s); border-bottom-right-radius: var(--r-s); }
+  /* your own hours: a thin outline around each run of them, kept under the other marks (--mine is
+     reused by the most-voted hour's glow) */
+  #tgrid .c.mine { --mine: inset 1.5px 0 var(--t-mine), inset -1.5px 0 var(--t-mine); box-shadow: var(--mine); }
+  #tgrid .c.mine.mtop { --mine: inset 1.5px 0 var(--t-mine), inset -1.5px 0 var(--t-mine), inset 0 1.5px var(--t-mine); }
+  #tgrid .c.mine.mend { --mine: inset 1.5px 0 var(--t-mine), inset -1.5px 0 var(--t-mine), inset 0 -1.5px var(--t-mine); }
+  #tgrid .c.mine.mtop.mend { --mine: inset 0 0 0 1.5px var(--t-mine); }
+  #tgrid .c.sel { z-index: 1; outline: 2px dashed var(--mut); outline-offset: 1px; }
+  #tgrid .c.top { z-index: 1; outline: 2px solid var(--acc); outline-offset: 1px; box-shadow: var(--mine, 0 0 transparent), 0 0 0 4px color-mix(in srgb, var(--acc) 25%, transparent); }
+  #tgrid .c.lim { z-index: 1; outline: 2px dashed var(--acc); outline-offset: -1px; background-color: color-mix(in srgb, var(--acc) 12%, var(--card)); }
+  #tgrid.inactive .c { cursor: default; }
+  #tgrid.limiting .c { cursor: crosshair; }
+  /* the Time view's part of the panel: who's answered how, the list, and the colour key */
+  #tside { display: none; font-size: var(--fs-m); }
+  body.view-time #tside { flex: 1 1 0; display: flex; flex-direction: column; }
+  #tpeople { margin: 0; padding: 8px 16px 0; color: var(--mut); font-size: var(--fs-s); }
+  #tpeople:empty { display: none; }
+  .tkey { flex: none; display: flex; flex-wrap: wrap; gap: 4px 10px; padding: 0 16px 12px; color: var(--mut); font-size: var(--fs-xs); }
+  .tkey span { display: inline-flex; align-items: center; gap: 4px; }
+  .tkey i { width: 12px; height: 12px; display: inline-block; border-radius: 3px; }
+  .tkey .k0 { border: 1px solid var(--line); background: var(--card); }
+  .tkey .k1 { background: var(--t-one); }
+  .tkey .k2 { background: var(--t-some); }
+  .tkey .ka { background: var(--t-all); }
+  .tkey .kt { border: 2px solid var(--acc); }
+  #ttz:empty { display: none; }
+
