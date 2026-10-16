@@ -1,0 +1,11 @@
+  /* Phones: Space | Time | Chat tabs; Chat swaps the panel's contents for the chat. Folded on the Chat
+     tab: just the message box, like the other tabs' one row of buttons. */
+  @media (max-width: 600px) {
+    body:not(.tab-chat) #chat { display: none; }
+    body.tab-chat #panel:not(.folded) > :not(#fold, #chat) { display: none; }
+    body.tab-chat #panel.folded > #scroller { display: none; }
+    body.tab-chat #panel.folded > #chat { display: flex; }
+    body.tab-chat #panel.folded #chat > :not(#chatform) { display: none; }
+    body.tab-chat #panel.folded #chatform { border-top: 0; }
+  }
+

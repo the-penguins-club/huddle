@@ -341,6 +341,29 @@
     .votes > button { width: 26px; height: 24px; }
   }
 
+  /* Phones: Space | Time | Chat tabs; Chat swaps the panel's contents for the chat. Folded on the Chat
+     tab: just the message box, like the other tabs' one row of buttons. */
+  @media (max-width: 600px) {
+    body:not(.tab-chat) #chat { display: none; }
+    body.tab-chat #panel:not(.folded) > :not(#fold, #chat) { display: none; }
+    body.tab-chat #panel.folded > #scroller { display: none; }
+    body.tab-chat #panel.folded > #chat { display: flex; }
+    body.tab-chat #panel.folded #chat > :not(#chatform) { display: none; }
+    body.tab-chat #panel.folded #chatform { border-top: 0; }
+  }
+
+  /* In between (tablets, narrow windows): the panel takes the bottom half, with the chat beside the lists
+     rather than behind a tab, so the tabs are just Space | Time. */
+  @media (min-width: 601px) and (max-width: 960px) {
+    #panel { height: 50%; display: grid; grid-template-columns: minmax(0, 1fr) minmax(240px, 38%); grid-template-rows: auto minmax(0, 1fr); }
+    #fold { grid-column: 1 / -1; }
+    #scroller { grid-column: 1; grid-row: 2; }
+    #chat { grid-column: 2; grid-row: 2; border-left: 1px solid var(--line-strong); }
+    #panel.folded { grid-template-rows: auto auto; }
+    #panel.folded #scroller { grid-column: 1 / -1; }
+    #tabchat { display: none; }
+  }
+
 </style>
 </head>
 <body>
