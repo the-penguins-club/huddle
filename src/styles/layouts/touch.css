@@ -1,0 +1,5 @@
+  /* Touch screens zoom into a field whose text is under 16px when it's focused. */
+  @media (pointer: coarse) {
+    .field, .inline-edit { font-size: 16px; }   /* (your name, .me .inline-edit, stays small in its strip) */
+    h1 .inline-edit { font-size: 16px; }
+  }

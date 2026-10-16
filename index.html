@@ -87,6 +87,48 @@
   h1 .inline-edit::placeholder { color: var(--fg); font-size: inherit; font-weight: inherit; opacity: 1; }
   .h1row h1 { min-width: 0; }
 
+  /* ---------- 3. components ---------- */
+
+  /* Buttons. .btn: a secondary button; .primary: the main action (red); .icon: square, holding an icon;
+     .round: the small round ones by the title; .sm: the small icon buttons on the pin card. A mode
+     that's on ([aria-pressed]) or a limit that's set (.set) is tinted red. */
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 6px 10px; border: 1px solid var(--line-strong); border-radius: var(--r); background: var(--surf); color: var(--fg); font-size: var(--fs-m); font-weight: 500; text-decoration: none; white-space: nowrap; box-shadow: var(--sh-1); transition: background .12s, border-color .12s, box-shadow .12s, filter .12s; }
+  .btn:where(:hover:not(:disabled)) { background: var(--hover); border-color: color-mix(in srgb, var(--mut) 35%, var(--line-strong)); box-shadow: var(--sh-2); }
+  .btn:disabled { opacity: .45; cursor: default; box-shadow: none; }
+  .btn:is([aria-pressed="true"], .set) { border-color: color-mix(in srgb, var(--acc) 45%, var(--line-strong)); background: color-mix(in srgb, var(--acc) 8%, var(--card)); color: var(--acc); font-weight: 600; box-shadow: var(--sh-in); }
+  .btn.primary { padding: 10px 14px; border: 0; background: var(--acc-grad); color: #fff; font-weight: 600; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .16), 0 1px 2px rgba(0, 0, 0, .16), 0 2px 6px var(--acc-glow); }
+  .btn.primary:hover:not(:disabled) { background: var(--acc-grad); filter: brightness(1.07); }
+  .btn.primary:active { filter: brightness(.94); }
+  .btn.icon { flex: none; width: 40px; padding: 0; }
+  .btn.icon svg { width: 18px; height: 18px; }
+  .btn.round { flex: none; width: 20px; height: 20px; padding: 0; border-radius: 50%; color: var(--mut); font-size: var(--fs-xs); font-weight: 700; line-height: 1; }
+  .btn.round:hover:not(:disabled) { color: var(--fg); }
+  .btn.round svg { width: 12px; height: 12px; }
+  .btn.sm { width: 24px; height: 22px; padding: 0; border-radius: var(--r-s); font-size: var(--fs-s); box-shadow: none; }
+  .btn.sm svg { width: 13px; height: 13px; }
+  /* a text link that does something */
+  .link { padding: 0; border: 0; background: none; color: var(--mut); font-size: var(--fs-s); font-weight: 400; text-decoration: underline; text-transform: none; letter-spacing: 0; }
+  .link:hover { color: var(--fg); }
+
+  /* Segmented switch (.seg): a recessed track; the chosen option is a raised chip. */
+  .seg { display: flex; align-items: center; gap: 2px; padding: 2px; border: 1px solid var(--line); border-radius: var(--r); background: var(--inset); box-shadow: var(--sh-in); }
+  .seg > button { padding: 3px 12px; border: 0; border-radius: var(--r-s); background: none; color: var(--mut); font-size: var(--fs-m); font-weight: 600; transition: color .12s, background .12s; }
+  .seg > button:hover { color: var(--fg); }
+  .seg > button:is([aria-selected="true"], [aria-pressed="true"]) { background: var(--card); color: var(--fg); box-shadow: var(--sh-2); }
+
+  /* Text fields. .field: a boxed field (the chat's message box). .inline-edit: text that's editable in
+     place (the huddle's name, your name, a pin's label): no box until hovered, a field when
+     focused. .strong: bold, for names and titles. */
+  .field, .inline-edit { min-width: 0; padding: 6px 10px; border: 1px solid var(--line-strong); border-radius: var(--r); background: var(--card); color: var(--fg); font-size: var(--fs-m); box-shadow: var(--sh-in); }
+  .inline-edit { width: 100%; padding: 2px 6px; border-color: transparent; border-radius: var(--r-s); background: transparent; box-shadow: none; line-height: 1.35; resize: none; transition: background .12s, border-color .12s; }
+  .inline-edit:hover:not(:disabled) { border-color: var(--line-strong); background: color-mix(in srgb, var(--card) 70%, transparent); }
+  :is(.field, .inline-edit):focus { border-color: color-mix(in srgb, var(--acc) 50%, var(--line-strong)); background: var(--card); box-shadow: 0 0 0 3px color-mix(in srgb, var(--acc) 12%, transparent); outline: 0; }
+  .strong { font-weight: 600; }
+
+  /* Floating boxes (.float): over the map, calendar or panel (the pin card, toasts, the people dropdown,
+     the tutorial). */
+  .float { border: 1px solid var(--line-strong); border-radius: var(--r-l); background: var(--card); color: var(--fg); box-shadow: var(--sh-float); }
+
   /* Avatars: a person's identicon in a ring of their colour (the pins draw their own, see the map). */
   .face { position: relative; flex: none; width: 18px; height: 18px; overflow: hidden; border: 2px solid; border-radius: 50%; background: #fff; }
   .face svg { width: 20px; height: 20px; }
@@ -378,6 +420,11 @@
     #tabchat { display: none; }
   }
 
+  /* Touch screens zoom into a field whose text is under 16px when it's focused. */
+  @media (pointer: coarse) {
+    .field, .inline-edit { font-size: 16px; }   /* (your name, .me .inline-edit, stays small in its strip) */
+    h1 .inline-edit { font-size: 16px; }
+  }
 </style>
 </head>
 <body>

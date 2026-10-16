@@ -1,0 +1,9 @@
+  /* Text fields. .field: a boxed field (the chat's message box). .inline-edit: text that's editable in
+     place (the huddle's name, your name, a pin's label): no box until hovered, a field when
+     focused. .strong: bold, for names and titles. */
+  .field, .inline-edit { min-width: 0; padding: 6px 10px; border: 1px solid var(--line-strong); border-radius: var(--r); background: var(--card); color: var(--fg); font-size: var(--fs-m); box-shadow: var(--sh-in); }
+  .inline-edit { width: 100%; padding: 2px 6px; border-color: transparent; border-radius: var(--r-s); background: transparent; box-shadow: none; line-height: 1.35; resize: none; transition: background .12s, border-color .12s; }
+  .inline-edit:hover:not(:disabled) { border-color: var(--line-strong); background: color-mix(in srgb, var(--card) 70%, transparent); }
+  :is(.field, .inline-edit):focus { border-color: color-mix(in srgb, var(--acc) 50%, var(--line-strong)); background: var(--card); box-shadow: 0 0 0 3px color-mix(in srgb, var(--acc) 12%, transparent); outline: 0; }
+  .strong { font-weight: 600; }
+

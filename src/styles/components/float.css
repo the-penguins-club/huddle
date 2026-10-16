@@ -1,0 +1,4 @@
+  /* Floating boxes (.float): over the map, calendar or panel (the pin card, toasts, the people dropdown,
+     the tutorial). */
+  .float { border: 1px solid var(--line-strong); border-radius: var(--r-l); background: var(--card); color: var(--fg); box-shadow: var(--sh-float); }
+
