@@ -1,7 +1,18 @@
+# Two stages: the first builds the page (Stylus comes from npm), the second runs the server, which needs
+# nothing installed, with just the built page.
+FROM node:22-alpine AS build
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci --no-audit --no-fund
+COPY build.js ./
+COPY src ./src
+RUN node build.js
+
 FROM node:22-alpine
 
 WORKDIR /app
-COPY server.js index.html ./
+COPY server.js ./
+COPY --from=build /app/index.html ./
 
 # Rooms persist here. Created and owned by the unprivileged user *before* VOLUME, so a fresh
 # named volume inherits that ownership and the server can write to it.

@@ -22,6 +22,7 @@ const crypto = require('crypto');
 const PORT = Number(process.env.PORT) || 8765;
 const HOST = process.env.HOST || '127.0.0.1';
 const DATA_FILE = process.env.DATA_FILE || path.join(__dirname, 'rooms.json');
+const PAGE = path.join(__dirname, 'index.html');   // built from src/ by build.js
 const TRUST_PROXY = process.env.TRUST_PROXY === '1';
 const LAN_INFO = process.env.LAN_INFO !== '0';
 const MAX_ROOMS = 500, MAX_PINS = 500, MAX_CHAT = 200, MAX_TEXT = 500, MAX_AREA = 200, MAX_LABEL = 30, MERGE_M = 100;
@@ -453,8 +454,13 @@ const server = http.createServer(async (req, res) => {
   try {
     const parts = url.pathname.split('/').filter(Boolean);
     if (req.method === 'GET' && (url.pathname === '/' || url.pathname === '/index.html')) {
+      let page;
+      try { page = fs.readFileSync(PAGE); } catch {   // read per request, so a rebuild shows on reload
+        res.writeHead(503, { 'Content-Type': 'text/plain; charset=utf-8' });
+        return res.end('The page is not built yet: run `npm install` once, then `npm run build`.\n');
+      }
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache' });
-      return res.end(fs.readFileSync(path.join(__dirname, 'index.html')));
+      return res.end(page);
     }
     if (req.method === 'GET' && url.pathname === '/api/info') return json(res, 200, { lan: lanAddresses(), port: PORT });
     if (parts[0] === 'api' && parts[1] === 'rooms' && ROOM_RE.test(parts[2] || '')) {

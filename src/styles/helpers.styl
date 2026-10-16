@@ -1,0 +1,14 @@
+// Stylus helpers, for CSS that Stylus would otherwise read as its own.
+
+// No -moz-/-webkit-/-o- copies of @keyframes and the like: browsers we support don't need them.
+vendors = official
+
+// color-mix(in srgb, a p, b): Stylus reads "in" as its own operator, so the call is written cmix(a, p, b).
+cmix(a, p, b)
+  unquote('color-mix(in srgb, %s %s, %s)' % (a p b))
+
+// CSS's min() and max(), not Stylus's number comparisons (which fail on calc() and var()).
+min(a, b)
+  unquote('min(%s, %s)' % (a b))
+max(a, b)
+  unquote('max(%s, %s)' % (a b))

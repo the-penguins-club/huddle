@@ -1,0 +1,37 @@
+// The tutorial: a card over the map or calendar; what it talks about gets an amber outline.
+#tut
+  position: fixed
+  z-index: 1050
+  top: 50%
+  left: 50%
+  width: min(320px, calc(100% - 24px))
+  padding: 12px 14px
+  transform: translate(-50%, -50%)
+  cursor: default
+  .th
+    display: flex
+    justify-content: space-between
+    align-items: baseline
+    gap: 8px
+    span
+      color: var(--mut)
+      font-size: var(--fs-s)
+  p
+    margin: 6px 0 12px
+  .tb
+    display: flex
+    justify-content: space-between
+    align-items: center
+  .btn.primary
+    padding: 6px 14px
+.tut-hl
+  outline: 3px solid var(--hl)
+  outline-offset: 2px
+  animation: tutpulse 1.4s ease-in-out infinite
+@keyframes tutpulse
+  50%
+    box-shadow: 0 0 0 7px var(--hl-glow)
+@media (prefers-reduced-motion: reduce)
+  .tut-hl
+    animation: none
+    box-shadow: 0 0 0 5px var(--hl-glow)

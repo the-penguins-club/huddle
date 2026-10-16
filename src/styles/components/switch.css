@@ -1,6 +1,0 @@
-  /* Segmented switch (.seg): a recessed track; the chosen option is a raised chip. */
-  .seg { display: flex; align-items: center; gap: 2px; padding: 2px; border: 1px solid var(--line); border-radius: var(--r); background: var(--inset); box-shadow: var(--sh-in); }
-  .seg > button { padding: 3px 12px; border: 0; border-radius: var(--r-s); background: none; color: var(--mut); font-size: var(--fs-m); font-weight: 600; transition: color .12s, background .12s; }
-  .seg > button:hover { color: var(--fg); }
-  .seg > button:is([aria-selected="true"], [aria-pressed="true"]) { background: var(--card); color: var(--fg); box-shadow: var(--sh-2); }
-

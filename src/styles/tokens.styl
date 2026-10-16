@@ -1,0 +1,90 @@
+// Tokens: colours, shadows, type and shape, for the light theme and then the dark one.
+:root
+  color-scheme: light
+  // surfaces, back to front: canvas (behind the map and calendar) < panel (--bg) < cards and controls
+  // (--card, or --surf: the same, lit from above) < floating boxes. --inset: recessed (the lists'
+  // well, switch tracks); --hover: a control under the pointer
+  --canvas: #e8ebf0
+  --bg: #f2f4f7
+  --card: #fff
+  --surf: linear-gradient(180deg, #fff, #f8f9fb)
+  --inset: #e9ecf1
+  --hover: #f5f6f9
+  --chat: #f9fafb
+  --fg: #1b2030
+  --mut: #5e6677
+  --line: #e1e4ea
+  --line-strong: #c9ced8
+  // shadows: a control at rest, a raised card, a card lifted on hover, a field's inner edge, a floating box
+  --sh-1: 0 1px 2px rgba(16, 24, 40, .06)
+  --sh-2: 0 1px 2px rgba(16, 24, 40, .08), 0 3px 8px rgba(16, 24, 40, .1)
+  --sh-3: 0 2px 4px rgba(16, 24, 40, .08), 0 8px 18px rgba(16, 24, 40, .14)
+  --sh-in: inset 0 1px 1px rgba(16, 24, 40, .05)
+  --sh-float: 0 1px 2px rgba(16, 24, 40, .06), 0 6px 18px rgba(16, 24, 40, .1)
+  --sh-edge: rgba(16, 24, 40, .14)   // a scrolling box's edge, where there's more to see
+  --sh-panel: 0 -2px 10px rgba(0, 0, 0, .1)   // the stacked layouts' panel, over the map
+  // colours: red for actions and selection; slate blue marks the chat, green what's decided
+  --acc: #d93025
+  --acc-grad: linear-gradient(180deg, #df3a2f, #cc2a1f)
+  --acc-glow: rgba(217, 48, 37, .22)
+  --acc2: #3d5a94
+  --ok: #15803d
+  --warn: #c2410c
+  --hl: #d97706
+  --hl-glow: rgba(217, 119, 6, .35)   // the tutorial's highlight: must not look like the accent
+  // the calendar: one person free / two or more / everyone, the numbers on the bright two, your own
+  // outline, and the faint line between empty hours
+  --t-one: #d3dcea
+  --t-some: #fcc93a
+  --t-all: #4fd282
+  --t-text: #1d2433
+  --t-mine: rgba(0, 0, 0, .6)
+  --t-line: rgba(127, 127, 127, .14)
+  // type and shape
+  // type sizes, the only ones used: badges and calendar numbers < notes < secondary text < controls <
+  // body < small headings and icon glyphs < the title; --fs-touch: fields on touch screens (under 16px,
+  // phones zoom in on focus)
+  --fs-2xs: 10px
+  --fs-xs: 11px
+  --fs-s: 12px
+  --fs-m: 13px
+  --fs-body: 14px
+  --fs-l: 15px
+  --fs-xl: 18px
+  --fs-touch: 16px
+  --r-s: 6px
+  --r: 8px
+  --r-l: 10px
+  &[data-theme="dark"]
+    color-scheme: dark
+    --canvas: #090b0f
+    --bg: #12151c
+    --card: #1a1f29
+    --surf: linear-gradient(180deg, #202634, #1a1f29)
+    --inset: #0c0f14
+    --hover: #222937
+    --chat: #0f1218
+    --fg: #e8eaf0
+    --mut: #9aa3b4
+    --line: #262c38
+    --line-strong: #39414f
+    --sh-1: 0 1px 2px rgba(0, 0, 0, .4)
+    --sh-2: 0 1px 2px rgba(0, 0, 0, .5), 0 4px 10px rgba(0, 0, 0, .4)
+    --sh-3: 0 2px 4px rgba(0, 0, 0, .5), 0 10px 22px rgba(0, 0, 0, .5)
+    --sh-in: inset 0 1px 2px rgba(0, 0, 0, .35)
+    --sh-float: 0 2px 4px rgba(0, 0, 0, .3), 0 8px 22px rgba(0, 0, 0, .45)
+    --sh-edge: rgba(0, 0, 0, .5)
+    --sh-panel: 0 -2px 12px rgba(0, 0, 0, .45)
+    --acc: #ff6b5e
+    --acc-grad: linear-gradient(180deg, #e2493e, #cc3a30)
+    --acc-glow: rgba(217, 68, 58, .22)
+    --acc2: #93abdb
+    --ok: #4ade80
+    --warn: #fb923c
+    --hl: #fbbf24
+    --hl-glow: rgba(251, 191, 36, .4)
+    --t-one: #384457
+    --t-some: #e0a42e
+    --t-all: #3cbf6c
+    --t-text: #14171c
+    --t-mine: rgba(255, 255, 255, .7)

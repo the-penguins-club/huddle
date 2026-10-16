@@ -1,0 +1,58 @@
+// The grip (.gface) on the panel's strip (stacked layouts) and the chat's title bar (desktop): a dashed
+// bar (.beak); on the strip, between two small triangles (.eye): ▼ - - ▼, or ▲ - - ▲ when the panel's
+// folded (the chat bar's only show as eyes). Easter egg: under the pointer or finger it's a penguin's face, a white patch with an
+// orange beak, its eyes open; on the strip they squint at just the list and shut when it's folded.
+.gface
+  display: flex
+  align-items: center
+  gap: 8px
+  padding: 2px 9px
+  border-radius: 999px
+  transition: background .15s, box-shadow .15s
+  .eye
+    width: 0
+    height: 0
+    border-left: 4px solid transparent
+    border-right: 4px solid transparent
+    border-top: 5px solid currentColor
+    border-radius: 0
+    transition: width .15s, height .15s, border-width .15s, border-radius .15s, background .15s
+#panel.folded #fold .eye
+  border-top: 0
+  border-bottom: 5px solid currentColor
+.chatbar:not(:hover, :active) .eye
+  display: none
+.gface .beak
+  width: 30px
+  height: 3px
+  border-radius: 2px
+  background: repeating-linear-gradient(90deg, currentColor 0 5px, transparent 5px 8px)
+  opacity: .6
+  transition: width .15s, height .15s, background .15s, opacity .15s
+:is(#fold, .chatbar):is(:hover, :active) .gface
+  background: #fff
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, .12)
+:is(#fold, .chatbar):is(:hover, :active) .eye
+  width: 7px
+  height: 7px
+  border: 0
+  border-radius: 50%
+  background: #111
+#panel.listonly #fold:is(:hover, :active) .eye
+  width: 9px
+  height: 3px
+  border-radius: 2px
+#panel.folded #fold:is(:hover, :active) .eye
+  width: 9px
+  height: 5px
+  border: 0
+  border-bottom: 2px solid #111
+  border-radius: 0 0 6px 6px
+  background: none
+:is(#fold, .chatbar):is(:hover, :active) .beak
+  width: 14px
+  height: 9px
+  border-radius: 2px
+  background: #f59e0b
+  opacity: 1
+  clip-path: polygon(0 0, 100% 0, 50% 100%)

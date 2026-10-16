@@ -10,7 +10,7 @@ Things that cost time before. One line of cause, one of what to do. Prune what s
   to it. Put the narrower layout's rules after the wider ones'.
 - **`:not(#a):not(#b)` adds two ids of specificity; `:not(#a, #b)` adds one.** Prefer the list form.
 - **A `--var` set by one rule can feed another's `box-shadow`.** Used to keep "your hours" outlined
-  under the most-voted glow (`--mine` in `regions/time.css`).
+  under the most-voted glow (`--mine` in `regions/time.styl`).
 - **Phones zoom into fields under 16px.** Fields are 16px on `pointer: coarse` only; placeholders stay 12px.
 
 ## The browser pane (verifying)
@@ -26,6 +26,17 @@ Things that cost time before. One line of cause, one of what to do. Prune what s
 - `document.styleSheets` style rules have an (empty) `cssRules` too: when flattening, only descend into
   `CSSMediaRule`s.
 - `focus` events don't fire from script while the pane isn't focused; test with a real click.
+
+## Stylesheets (Stylus)
+
+- **Stylus reads some CSS as its own.** `in` in `color-mix(in srgb, …)` is its operator: write
+  `cmix(a, p, b)`. `min()`/`max()` are its number functions: `helpers.styl` redefines them as CSS's.
+  Without `vendors = official` it adds `-moz-`/`-webkit-` copies of `@keyframes`.
+- **Don't nest a selector with a comma inside `:is()`/`:not()`.** Stylus splits at that comma too and
+  puts the parent in front of each half. Such rules stay written out in full.
+- **To check a stylesheet change changes only what it should,** compare the built CSS before and after
+  rule by rule (selectors and declarations, normalised), not by eye: Stylus reformats numbers and
+  spacing (`.5` → `0.5`) and moves `@keyframes` after the rules around it.
 
 ## Scripts
 

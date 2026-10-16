@@ -1,0 +1,41 @@
+// Huddle's stylesheet, in cascade order: build.js compiles this file into the page's <style>.
+// Stylus, indented: no braces or semicolons; nesting writes '#tgrid .c' as .c under #tgrid, and
+// '#tpeople:empty' as &:empty under #tpeople. Colours and sizes are CSS custom properties (tokens), not
+// Stylus variables, so the dark theme can swap them at run time.
+
+@import 'helpers'
+
+// Tokens: colours, shadows, type and shape, light and dark
+@import 'tokens'
+
+// Base
+@import 'base'
+
+// Components: classes styled once, used everywhere (.btn, .seg, .field, .inline-edit, .float, .listbox and
+// .list, .gface, .face). To change how something looks everywhere, change the component.
+@import 'components/buttons'
+@import 'components/switch'
+@import 'components/fields'
+@import 'components/float'
+@import 'components/lists'
+@import 'components/grip'
+@import 'components/avatars'
+
+// Regions: they only place and size the components, never restyle them
+@import 'regions/frame'
+@import 'regions/panel'
+@import 'regions/room'
+@import 'regions/pick'
+@import 'regions/time'
+@import 'regions/chat'
+@import 'regions/map'
+@import 'regions/floating'
+@import 'regions/tutorial'
+
+// Layouts: desktop (over 960px); stacked (960px and under), then what phones (600px and under) and the
+// in-between widths change on top of it, so they come later and win; touch screens last
+@import 'layouts/desktop'
+@import 'layouts/stacked'
+@import 'layouts/phone'
+@import 'layouts/tablet'
+@import 'layouts/touch'

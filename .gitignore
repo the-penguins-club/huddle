@@ -1,3 +1,7 @@
+# the built page (npm run build) and the build's dependencies
+/index.html
+node_modules/
+
 rooms.json
 rooms.json.tmp
 .env

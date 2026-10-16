@@ -3,11 +3,16 @@
   "private": true,
   "description": "Pick where and when a group meets: pins on a map, free hours on a calendar, votes on both.",
   "scripts": {
-    "start": "node server.js",
+    "start": "node build.js && node server.js",
     "build": "node build.js",
     "watch": "node build.js --watch",
     "check": "sh .githooks/pre-commit",
     "dummies": "node dev/dummies.js"
   },
-  "engines": { "node": ">=18" }
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "stylus": "0.64.0"
+  }
 }

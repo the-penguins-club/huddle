@@ -11,21 +11,25 @@ const ROOT = path.join(__dirname, '..');
 const MAP = path.join(ROOT, 'docs/map.md');
 const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
 
-// The first comment in a file, as one line: its first sentence, without comment syntax. The
-// stylesheet's numbered section markers ("---------- 3. components ----------") and its "=====" banner
-// say where a part sits, not what it is, so they're skipped for the comment after them.
-const MARKER = /^\s*(=====.*|-{3,}\s*\d+\.[^-]*-{3,})\s*$/s;
+// The first comment in a file, as one line: its first sentence, without comment syntax. A comment is a
+// /* block */ or a run of whole-line // comments (Stylus's); one after code on its line doesn't count.
 function summary(text) {
-  const m = [...text.matchAll(/\/\*([\s\S]*?)\*\/|\/\/(.*)/g)].find((c) => !MARKER.test(c[1] ?? c[2]));
+  const m = text.match(/\/\*([\s\S]*?)\*\/|((?:^[ \t]*\/\/.*(?:\n|$))+)/m);
   if (!m) return '';
-  let s = (m[1] ?? m[2]).replace(/\s+/g, ' ').replace(/-{3,}/g, '').trim();
+  let s = (m[1] ?? m[2].replace(/^[ \t]*\/\/ ?/gm, '')).replace(/\s+/g, ' ').replace(/-{3,}/g, '').trim();
   const dot = s.search(/\.(\s|$)/);
   if (dot > 0) s = s.slice(0, dot);
   return s.replace(/\|/g, '\\|');
 }
 
+// The page's parts in build order: its includes, and in place of the stylesheet, the stylesheet and
+// then the parts it @imports.
 function parts() {
-  const files = [...read('src/index.html').matchAll(/^<!-- @include (\S+) -->$/gm)].map((m) => m[1]);
+  const files = [...read('src/index.html').matchAll(/^<!-- @include (\S+) -->$/gm)].flatMap(([, f]) => {
+    if (!f.endsWith('.styl')) return [f];
+    const dir = path.dirname(f), imports = [...read(path.join('src', f)).matchAll(/^@import '([^']+)'$/gm)];
+    return [f, ...imports.map(([, i]) => path.join(dir, `${i}.styl`))];
+  });
   return ['| part | what it is (its first comment) |', '|---|---|',
     ...files.map((f) => `| \`${f}\` | ${summary(read(path.join('src', f)))} |`)].join('\n');
 }

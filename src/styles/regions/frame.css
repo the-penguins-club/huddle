@@ -1,8 +1,0 @@
-  /* ---------- 4. regions ---------- */
-
-  /* The frame: the app's box (the map or calendar, and the panel), whatever the layout. */
-  /* fixed + inset follows the *visible* viewport, so mobile browser chrome can't push the layout off-screen */
-  #app { position: fixed; inset: 0; display: flex; }
-  #map { flex: 1; min-width: 0; background: var(--card); }
-  body.view-time #map { display: none; }
-

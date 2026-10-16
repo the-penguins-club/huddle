@@ -5,3 +5,7 @@ rooms.json
 rooms.json.tmp
 docker-compose.yml
 Dockerfile
+node_modules
+index.html
+.scratch
+.claude

@@ -1,0 +1,8 @@
+// Touch screens zoom into a field whose text is under 16px when it's focused.
+@media (pointer: coarse)
+  .field, .inline-edit
+    font-size: var(--fs-touch)
+  .me .inline-edit:focus   // your name: small in its strip, full size while it's edited
+    font-size: var(--fs-touch)
+  h1 .inline-edit
+    font-size: var(--fs-touch)

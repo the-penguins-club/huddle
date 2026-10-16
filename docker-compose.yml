@@ -2,6 +2,7 @@
 #   docker compose up -d --build
 #
 # Keep this at a single replica: room state lives in the process's memory.
+# --build rebuilds the page from src/ inside the image (see the Dockerfile); nothing to build first.
 services:
   randompin:
     build: .
