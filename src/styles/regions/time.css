@@ -8,7 +8,7 @@
   #tgrid .dh { position: sticky; top: 0; z-index: 2; padding: 10px 0 4px; color: var(--mut); font-size: var(--fs-s); font-weight: 600; text-align: center; white-space: nowrap; }
   #tgrid .hh { position: sticky; left: 0; z-index: 1; padding: 0 6px 0 12px; color: var(--mut); font-size: var(--fs-xs); line-height: var(--rowh); text-align: right; font-variant-numeric: tabular-nums; }
   #tgrid > div:first-child { position: sticky; left: 0; top: 0; z-index: 3; }
-  #tgrid .c { position: relative; height: var(--rowh); background: var(--card); color: var(--fg); font-size: 10px; font-weight: 600; line-height: var(--rowh); text-align: center; cursor: pointer; }
+  #tgrid .c { position: relative; height: var(--rowh); background: var(--card); color: var(--fg); font-size: var(--fs-2xs); font-weight: 600; line-height: var(--rowh); text-align: center; cursor: pointer; }
   #tgrid .c.nofree { background-image: linear-gradient(var(--t-line) 1px, transparent 1px); }   /* faint hour lines */
   #tgrid .c.gap { background: none; cursor: default; }   /* an hour the clocks skip */
   #tgrid .c.one { background: var(--t-one); }

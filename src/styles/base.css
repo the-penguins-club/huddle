@@ -3,13 +3,13 @@
   /* Base: box sizing, type, focus rings, placeholders, headings, and [hidden]. */
   * { box-sizing: border-box; }
   html, body { height: 100%; margin: 0; }
-  body { background: var(--canvas); color: var(--fg); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  body { background: var(--canvas); color: var(--fg); font: var(--fs-body)/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
   button, input, textarea { font: inherit; color: inherit; }
   button { cursor: pointer; }
   [hidden] { display: none !important; }
   :is(button, a, [role="button"]):focus-visible { outline: 2px solid color-mix(in srgb, var(--acc) 60%, transparent); outline-offset: 2px; }
   ::placeholder { color: var(--mut); opacity: .85; font-size: var(--fs-s); font-weight: 400; }
-  h1 { margin: 0; font-size: 18px; letter-spacing: -.01em; }
+  h1 { margin: 0; font-size: var(--fs-xl); letter-spacing: -.01em; }
   /* the huddle's name: looks like the heading until hovered (empty, it shows "Huddle") */
   h1 .inline-edit { width: auto; max-width: 100%; margin-left: -6px; padding: 0 5px; font: inherit; letter-spacing: inherit; text-overflow: ellipsis; }
   h1 .inline-edit::placeholder { color: var(--fg); font-size: inherit; font-weight: inherit; opacity: 1; }

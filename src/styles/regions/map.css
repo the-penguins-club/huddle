@@ -4,10 +4,10 @@
   .leaflet-google-pane iframe { position: absolute; left: 0; top: 0; border: 0; transform-origin: 0 0; transition: opacity .2s; }   /* fades in */
   .leaflet-zoom-anim .leaflet-google-pane iframe { transition: transform .25s cubic-bezier(0, 0, .25, 1), opacity .2s; }   /* follows Leaflet's zoom */
   .leaflet-bar { overflow: hidden; border: 1px solid rgba(0, 0, 0, .15) !important; border-radius: var(--r) !important; box-shadow: 0 1px 4px rgba(0, 0, 0, .15) !important; }
-  .resetc a { font-size: 17px; }
+  .resetc a { font-size: var(--fs-xl); }
   .basesw a { font-family: system-ui, sans-serif; font-weight: 700; letter-spacing: -.02em; }   /* shows the map it switches to */
-  .basesw a.google { font-size: 15px; color: #4285f4; }
-  .basesw a.osm { font-size: 9px; color: #3a7d2c; }
+  .basesw a.google { font-size: var(--fs-l); color: #4285f4; }
+  .basesw a.osm { font-size: var(--fs-2xs); color: #3a7d2c; }
   /* Box / Freehand (a .seg), over the map while drawing an area */
   #shapesw { position: absolute; z-index: 1000; top: 10px; left: 50%; transform: translateX(-50%); box-shadow: 0 1px 4px rgba(0, 0, 0, .15); }
   /* Pins: a teardrop rotated so the tip is at the bottom centre; a saturated fill (purple when nobody's
@@ -22,14 +22,14 @@
      the grid fill it; the corners get clipped, which still leaves each one distinct */
   .pin-icon .pin .av { position: relative; width: 20px; height: 20px; overflow: hidden; border-radius: 50%; background: #fff; transform: rotate(45deg); }
   .pin-icon .pin .av svg { width: 28px; height: 28px; }
-  .pin-icon .pin span { color: #fff; font: 700 12px/1 system-ui, sans-serif; text-shadow: 0 0 2px rgba(0, 0, 0, .5); transform: rotate(45deg); }
+  .pin-icon .pin span { color: #fff; font: 700 var(--fs-s)/1 system-ui, sans-serif; text-shadow: 0 0 2px rgba(0, 0, 0, .5); transform: rotate(45deg); }
   /* more votes = bigger, scaled about the tip so the pin stays on its spot; the score on its head is
      counter-scaled in the code so it stays readable */
   .pin-icon .size { position: relative; transform-origin: 15px 32px; transition: transform .25s ease, opacity .25s ease; }
-  .pin-icon .vb { position: absolute; left: 19px; top: -5px; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 9px; background: #1e8e3e; color: #fff; font: 700 10px/17px system-ui, sans-serif; text-align: center; transform-origin: 0 100%; box-shadow: 0 0 0 1.5px #fff, 0 1px 3px rgba(0, 0, 0, .4); }
+  .pin-icon .vb { position: absolute; left: 19px; top: -5px; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 9px; background: #1e8e3e; color: #fff; font: 700 var(--fs-2xs)/17px system-ui, sans-serif; text-align: center; transform-origin: 0 100%; box-shadow: 0 0 0 1.5px #fff, 0 1px 3px rgba(0, 0, 0, .4); }
   .pin-icon .vb.down { background: #5f6368; }
   /* a pin's label, under its tip: about 7 characters (the full label is in the list) */
-  .leaflet-tooltip.pin-tag { max-width: calc(7ch + 12px); overflow: hidden; padding: 0 6px; border: 0; border-radius: 4px; background: rgba(255, 255, 255, .92); color: #1a1a1a; font: 600 13px/19px system-ui, sans-serif; text-overflow: ellipsis; box-shadow: 0 1px 3px rgba(0, 0, 0, .3); }
+  .leaflet-tooltip.pin-tag { max-width: calc(7ch + 12px); overflow: hidden; padding: 0 6px; border: 0; border-radius: 4px; background: rgba(255, 255, 255, .92); color: #1a1a1a; font: 600 var(--fs-m)/19px system-ui, sans-serif; text-overflow: ellipsis; box-shadow: 0 1px 3px rgba(0, 0, 0, .3); }
   .leaflet-tooltip.pin-tag::before { display: none; }
   /* a merge: a ghost of the placed pin slides into the one it joined */
   .ghost { position: absolute; z-index: 650; width: 18px; height: 18px; border: 2px solid #fff; border-radius: 50% 50% 50% 0; background: var(--pc); rotate: -45deg; pointer-events: none; box-shadow: 0 1px 4px rgba(0, 0, 0, .35); }

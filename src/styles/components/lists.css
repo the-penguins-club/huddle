@@ -27,7 +27,7 @@
   .coords { overflow: hidden; font-size: var(--fs-m); font-variant-numeric: tabular-nums; text-overflow: ellipsis; white-space: nowrap; }
   .when { overflow: hidden; color: var(--mut); font-size: var(--fs-s); text-overflow: ellipsis; white-space: nowrap; }
   .acts { flex: none; display: flex; }
-  .acts > :is(a, button) { width: 24px; height: 24px; display: grid; place-items: center; padding: 0; border: 0; border-radius: var(--r-s); background: none; color: var(--mut); font-size: 15px; line-height: 1; text-decoration: none; }
+  .acts > :is(a, button) { width: 24px; height: 24px; display: grid; place-items: center; padding: 0; border: 0; border-radius: var(--r-s); background: none; color: var(--mut); font-size: var(--fs-l); line-height: 1; text-decoration: none; }
   .acts > :is(a, button):hover { background: var(--inset); color: var(--fg); }
   /* ▲ score ▼ (a .seg): your vote is tinted red */
   .votes { flex: none; padding: 1px; }

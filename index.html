@@ -56,7 +56,10 @@
        outline, and the faint line between empty hours */
     --t-one: #d3dcea; --t-some: #fcc93a; --t-all: #4fd282; --t-text: #1d2433; --t-mine: rgba(0, 0, 0, .6); --t-line: rgba(127, 127, 127, .14);
     /* type and shape */
-    --fs-xs: 11px; --fs-s: 12px; --fs-m: 13px;
+    /* type sizes, the only ones used: badges and calendar numbers < notes < secondary text < controls <
+       body < small headings and icon glyphs < the title; --fs-touch: fields on touch screens (under 16px,
+       phones zoom in on focus) */
+    --fs-2xs: 10px; --fs-xs: 11px; --fs-s: 12px; --fs-m: 13px; --fs-body: 14px; --fs-l: 15px; --fs-xl: 18px; --fs-touch: 16px;
     --r-s: 6px; --r: 8px; --r-l: 10px;
   }
   :root[data-theme="dark"] {
@@ -82,13 +85,13 @@
   /* Base: box sizing, type, focus rings, placeholders, headings, and [hidden]. */
   * { box-sizing: border-box; }
   html, body { height: 100%; margin: 0; }
-  body { background: var(--canvas); color: var(--fg); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  body { background: var(--canvas); color: var(--fg); font: var(--fs-body)/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
   button, input, textarea { font: inherit; color: inherit; }
   button { cursor: pointer; }
   [hidden] { display: none !important; }
   :is(button, a, [role="button"]):focus-visible { outline: 2px solid color-mix(in srgb, var(--acc) 60%, transparent); outline-offset: 2px; }
   ::placeholder { color: var(--mut); opacity: .85; font-size: var(--fs-s); font-weight: 400; }
-  h1 { margin: 0; font-size: 18px; letter-spacing: -.01em; }
+  h1 { margin: 0; font-size: var(--fs-xl); letter-spacing: -.01em; }
   /* the huddle's name: looks like the heading until hovered (empty, it shows "Huddle") */
   h1 .inline-edit { width: auto; max-width: 100%; margin-left: -6px; padding: 0 5px; font: inherit; letter-spacing: inherit; text-overflow: ellipsis; }
   h1 .inline-edit::placeholder { color: var(--fg); font-size: inherit; font-weight: inherit; opacity: 1; }
@@ -165,7 +168,7 @@
   .coords { overflow: hidden; font-size: var(--fs-m); font-variant-numeric: tabular-nums; text-overflow: ellipsis; white-space: nowrap; }
   .when { overflow: hidden; color: var(--mut); font-size: var(--fs-s); text-overflow: ellipsis; white-space: nowrap; }
   .acts { flex: none; display: flex; }
-  .acts > :is(a, button) { width: 24px; height: 24px; display: grid; place-items: center; padding: 0; border: 0; border-radius: var(--r-s); background: none; color: var(--mut); font-size: 15px; line-height: 1; text-decoration: none; }
+  .acts > :is(a, button) { width: 24px; height: 24px; display: grid; place-items: center; padding: 0; border: 0; border-radius: var(--r-s); background: none; color: var(--mut); font-size: var(--fs-l); line-height: 1; text-decoration: none; }
   .acts > :is(a, button):hover { background: var(--inset); color: var(--fg); }
   /* ▲ score ▼ (a .seg): your vote is tinted red */
   .votes { flex: none; padding: 1px; }
@@ -256,7 +259,7 @@
   /* The pick, one layout at every size: a vote badge (★ over the count), the time over the place (the
      same size), and the calendar button. Anything too long ends in "…" (the whole text is its tooltip). */
   #pick { margin-top: 8px; }
-  .pick { --pick-fs: 14px; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "badge when ics" "badge where ics"; align-items: center; gap: 0 10px; padding: 7px 8px; border: 1px solid color-mix(in srgb, var(--ok) 35%, var(--line)); border-radius: var(--r); background: color-mix(in srgb, var(--ok) 7%, var(--card)); }
+  .pick { --pick-fs: var(--fs-body); display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "badge when ics" "badge where ics"; align-items: center; gap: 0 10px; padding: 7px 8px; border: 1px solid color-mix(in srgb, var(--ok) 35%, var(--line)); border-radius: var(--r); background: color-mix(in srgb, var(--ok) 7%, var(--card)); }
   .pick-head { grid-area: badge; align-self: stretch; min-width: 38px; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 2px 6px; border-radius: var(--r-s); background: color-mix(in srgb, var(--ok) 16%, var(--card)); color: var(--ok); font-size: var(--fs-m); font-weight: 700; line-height: 1.2; font-variant-numeric: tabular-nums; }
   .pick-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }   /* for screen readers */
   .pick-when, .pick-where { min-width: 0; overflow: hidden; font-size: var(--pick-fs); line-height: 1.3; text-overflow: ellipsis; white-space: nowrap; }
@@ -277,7 +280,7 @@
   #tgrid .dh { position: sticky; top: 0; z-index: 2; padding: 10px 0 4px; color: var(--mut); font-size: var(--fs-s); font-weight: 600; text-align: center; white-space: nowrap; }
   #tgrid .hh { position: sticky; left: 0; z-index: 1; padding: 0 6px 0 12px; color: var(--mut); font-size: var(--fs-xs); line-height: var(--rowh); text-align: right; font-variant-numeric: tabular-nums; }
   #tgrid > div:first-child { position: sticky; left: 0; top: 0; z-index: 3; }
-  #tgrid .c { position: relative; height: var(--rowh); background: var(--card); color: var(--fg); font-size: 10px; font-weight: 600; line-height: var(--rowh); text-align: center; cursor: pointer; }
+  #tgrid .c { position: relative; height: var(--rowh); background: var(--card); color: var(--fg); font-size: var(--fs-2xs); font-weight: 600; line-height: var(--rowh); text-align: center; cursor: pointer; }
   #tgrid .c.nofree { background-image: linear-gradient(var(--t-line) 1px, transparent 1px); }   /* faint hour lines */
   #tgrid .c.gap { background: none; cursor: default; }   /* an hour the clocks skip */
   #tgrid .c.one { background: var(--t-one); }
@@ -327,7 +330,7 @@
   .me { display: inline-flex; align-items: center; gap: 5px; min-width: 0; }
   .me .inline-edit { width: 12ch; padding: 1px 5px; font-size: var(--fs-s); }
   /* "<nick> text", wrapped lines indented a little */
-  #msgs { flex: 1; min-height: 0; overflow-y: auto; margin: 0; padding: 6px 0; list-style: none; font: 12.5px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  #msgs { flex: 1; min-height: 0; overflow-y: auto; margin: 0; padding: 6px 0; list-style: none; font: var(--fs-s)/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
   #msgs li { padding: 0 8px 0 calc(8px + 2ch); text-indent: -2ch; overflow-wrap: anywhere; }
   #msgs li.sys { color: var(--mut); }
   #msgs li.mention { background: color-mix(in srgb, var(--acc) 12%, transparent); box-shadow: inset 3px 0 var(--acc); }
@@ -353,10 +356,10 @@
   .leaflet-google-pane iframe { position: absolute; left: 0; top: 0; border: 0; transform-origin: 0 0; transition: opacity .2s; }   /* fades in */
   .leaflet-zoom-anim .leaflet-google-pane iframe { transition: transform .25s cubic-bezier(0, 0, .25, 1), opacity .2s; }   /* follows Leaflet's zoom */
   .leaflet-bar { overflow: hidden; border: 1px solid rgba(0, 0, 0, .15) !important; border-radius: var(--r) !important; box-shadow: 0 1px 4px rgba(0, 0, 0, .15) !important; }
-  .resetc a { font-size: 17px; }
+  .resetc a { font-size: var(--fs-xl); }
   .basesw a { font-family: system-ui, sans-serif; font-weight: 700; letter-spacing: -.02em; }   /* shows the map it switches to */
-  .basesw a.google { font-size: 15px; color: #4285f4; }
-  .basesw a.osm { font-size: 9px; color: #3a7d2c; }
+  .basesw a.google { font-size: var(--fs-l); color: #4285f4; }
+  .basesw a.osm { font-size: var(--fs-2xs); color: #3a7d2c; }
   /* Box / Freehand (a .seg), over the map while drawing an area */
   #shapesw { position: absolute; z-index: 1000; top: 10px; left: 50%; transform: translateX(-50%); box-shadow: 0 1px 4px rgba(0, 0, 0, .15); }
   /* Pins: a teardrop rotated so the tip is at the bottom centre; a saturated fill (purple when nobody's
@@ -371,14 +374,14 @@
      the grid fill it; the corners get clipped, which still leaves each one distinct */
   .pin-icon .pin .av { position: relative; width: 20px; height: 20px; overflow: hidden; border-radius: 50%; background: #fff; transform: rotate(45deg); }
   .pin-icon .pin .av svg { width: 28px; height: 28px; }
-  .pin-icon .pin span { color: #fff; font: 700 12px/1 system-ui, sans-serif; text-shadow: 0 0 2px rgba(0, 0, 0, .5); transform: rotate(45deg); }
+  .pin-icon .pin span { color: #fff; font: 700 var(--fs-s)/1 system-ui, sans-serif; text-shadow: 0 0 2px rgba(0, 0, 0, .5); transform: rotate(45deg); }
   /* more votes = bigger, scaled about the tip so the pin stays on its spot; the score on its head is
      counter-scaled in the code so it stays readable */
   .pin-icon .size { position: relative; transform-origin: 15px 32px; transition: transform .25s ease, opacity .25s ease; }
-  .pin-icon .vb { position: absolute; left: 19px; top: -5px; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 9px; background: #1e8e3e; color: #fff; font: 700 10px/17px system-ui, sans-serif; text-align: center; transform-origin: 0 100%; box-shadow: 0 0 0 1.5px #fff, 0 1px 3px rgba(0, 0, 0, .4); }
+  .pin-icon .vb { position: absolute; left: 19px; top: -5px; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 9px; background: #1e8e3e; color: #fff; font: 700 var(--fs-2xs)/17px system-ui, sans-serif; text-align: center; transform-origin: 0 100%; box-shadow: 0 0 0 1.5px #fff, 0 1px 3px rgba(0, 0, 0, .4); }
   .pin-icon .vb.down { background: #5f6368; }
   /* a pin's label, under its tip: about 7 characters (the full label is in the list) */
-  .leaflet-tooltip.pin-tag { max-width: calc(7ch + 12px); overflow: hidden; padding: 0 6px; border: 0; border-radius: 4px; background: rgba(255, 255, 255, .92); color: #1a1a1a; font: 600 13px/19px system-ui, sans-serif; text-overflow: ellipsis; box-shadow: 0 1px 3px rgba(0, 0, 0, .3); }
+  .leaflet-tooltip.pin-tag { max-width: calc(7ch + 12px); overflow: hidden; padding: 0 6px; border: 0; border-radius: 4px; background: rgba(255, 255, 255, .92); color: #1a1a1a; font: 600 var(--fs-m)/19px system-ui, sans-serif; text-overflow: ellipsis; box-shadow: 0 1px 3px rgba(0, 0, 0, .3); }
   .leaflet-tooltip.pin-tag::before { display: none; }
   /* a merge: a ghost of the placed pin slides into the one it joined */
   .ghost { position: absolute; z-index: 650; width: 18px; height: 18px; border: 2px solid #fff; border-radius: 50% 50% 50% 0; background: var(--pc); rotate: -45deg; pointer-events: none; box-shadow: 0 1px 4px rgba(0, 0, 0, .35); }
@@ -387,7 +390,7 @@
   #detail { position: absolute; z-index: 1000; left: 8px; bottom: 26px; max-width: calc(100% - 16px); padding: 6px 10px 8px; font-size: var(--fs-s); line-height: 1.35; cursor: default; }
   #detail .dhead { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-weight: 600; }
   #detail .dhead span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  #detail .x { padding: 0 2px; border: 0; background: none; color: var(--mut); font-size: 17px; line-height: 1; }
+  #detail .x { padding: 0 2px; border: 0; background: none; color: var(--mut); font-size: var(--fs-xl); line-height: 1; }
   #detail .x:hover { color: var(--fg); }
   #detail .dcoords { color: var(--mut); font-variant-numeric: tabular-nums; }
   #detail .links { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 4px; }
@@ -431,7 +434,7 @@
     #panel { width: 100%; height: 45%; min-height: 200px; border-left: 0; border-top: 1px solid var(--line-strong); box-shadow: var(--sh-panel); }
     #scroller > header { padding: 8px 12px 0; }
     .h1row { margin-bottom: 8px; }
-    h1 { font-size: 15px; }
+    h1 { font-size: var(--fs-l); }
     .btn.primary { padding: 8px 12px; }
     .tools { margin-top: 6px; }
     .tools > .btn { padding: 5px 8px; font-size: var(--fs-s); }
@@ -453,8 +456,8 @@
     #tabs button[aria-selected="true"] { color: var(--acc); box-shadow: inset 0 2px 0 var(--acc); }
     .listbox { min-height: 150px; margin: 8px; }
     .list > li { gap: 8px; padding: 3px 4px 3px 6px; }
-    .list .num { min-width: 22px; height: 22px; padding: 0 4px; border-radius: 11px; font-size: 10.5px; }
-    .list .coords { font-size: 12.5px; line-height: 1.3; }
+    .list .num { min-width: 22px; height: 22px; padding: 0 4px; border-radius: 11px; font-size: var(--fs-2xs); }
+    .list .coords { font-size: var(--fs-s); line-height: 1.3; }
     .list .when { font-size: var(--fs-xs); line-height: 1.25; }
     .acts > :is(a, button) { width: 22px; height: 22px; }
     .votes > button { width: 26px; height: 24px; }
@@ -485,9 +488,9 @@
 
   /* Touch screens zoom into a field whose text is under 16px when it's focused. */
   @media (pointer: coarse) {
-    .field, .inline-edit { font-size: 16px; }
-    .me .inline-edit:focus { font-size: 16px; }   /* your name: small in its strip, full size while it's edited */
-    h1 .inline-edit { font-size: 16px; }
+    .field, .inline-edit { font-size: var(--fs-touch); }
+    .me .inline-edit:focus { font-size: var(--fs-touch); }   /* your name: small in its strip, full size while it's edited */
+    h1 .inline-edit { font-size: var(--fs-touch); }
   }
 </style>
 </head>
@@ -2145,7 +2148,8 @@ const dayLabel = (ms, tz) => `${fmtIn(ms, tz, { weekday: 'short' })} ${fmtIn(ms,
 const slotLabel = (ms, tz) => `${fmtIn(ms, tz, { weekday: 'short', day: 'numeric', month: 'short' })}, ${fmtIn(ms, tz, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })}`;
 
 // Limit time: draw a box on the calendar (days × hours) to set the range everyone picks and votes
-// within; while one is set, the button clears it. Same idea as the map's Limit area.
+// within; while one is set, the button clears it. Same idea as the map's Limit area. It takes a drag
+// across at least two cells: a tap would limit everyone to a single hour.
 function setLimitMode(on) {
   tLimitMode = on; limitBox = null;
   if (paint?.kind === 'limit') paint = null;   // Esc mid-drag: drop the box
@@ -2421,6 +2425,11 @@ function endStroke() {
   if (!paint) return;
   if (paint.kind === 'limit') {   // the box becomes the room's range
     const r = gridSpec(), [d0, h0] = paint.from, [d1, h1] = paint.to;
+    if (d0 === d1 && h0 === h1) {   // a tap, not a drag: it would limit everyone to one hour
+      paint = null; limitBox = null;
+      renderTime();
+      return mapNote('Drag across the days and hours to limit to.');
+    }
     const range = { tz: r.tz, start: addDays(r.start, Math.min(d0, d1)), days: Math.abs(d1 - d0) + 1, from: Math.min(h0, h1), to: Math.max(h0, h1) + 1 };
     paint = null;
     room.range = range;

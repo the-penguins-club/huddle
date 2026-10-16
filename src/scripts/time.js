@@ -54,7 +54,8 @@ const dayLabel = (ms, tz) => `${fmtIn(ms, tz, { weekday: 'short' })} ${fmtIn(ms,
 const slotLabel = (ms, tz) => `${fmtIn(ms, tz, { weekday: 'short', day: 'numeric', month: 'short' })}, ${fmtIn(ms, tz, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })}`;
 
 // Limit time: draw a box on the calendar (days × hours) to set the range everyone picks and votes
-// within; while one is set, the button clears it. Same idea as the map's Limit area.
+// within; while one is set, the button clears it. Same idea as the map's Limit area. It takes a drag
+// across at least two cells: a tap would limit everyone to a single hour.
 function setLimitMode(on) {
   tLimitMode = on; limitBox = null;
   if (paint?.kind === 'limit') paint = null;   // Esc mid-drag: drop the box
@@ -330,6 +331,11 @@ function endStroke() {
   if (!paint) return;
   if (paint.kind === 'limit') {   // the box becomes the room's range
     const r = gridSpec(), [d0, h0] = paint.from, [d1, h1] = paint.to;
+    if (d0 === d1 && h0 === h1) {   // a tap, not a drag: it would limit everyone to one hour
+      paint = null; limitBox = null;
+      renderTime();
+      return mapNote('Drag across the days and hours to limit to.');
+    }
     const range = { tz: r.tz, start: addDays(r.start, Math.min(d0, d1)), days: Math.abs(d1 - d0) + 1, from: Math.min(h0, h1), to: Math.max(h0, h1) + 1 };
     paint = null;
     room.range = range;

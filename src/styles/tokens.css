@@ -34,7 +34,10 @@
        outline, and the faint line between empty hours */
     --t-one: #d3dcea; --t-some: #fcc93a; --t-all: #4fd282; --t-text: #1d2433; --t-mine: rgba(0, 0, 0, .6); --t-line: rgba(127, 127, 127, .14);
     /* type and shape */
-    --fs-xs: 11px; --fs-s: 12px; --fs-m: 13px;
+    /* type sizes, the only ones used: badges and calendar numbers < notes < secondary text < controls <
+       body < small headings and icon glyphs < the title; --fs-touch: fields on touch screens (under 16px,
+       phones zoom in on focus) */
+    --fs-2xs: 10px; --fs-xs: 11px; --fs-s: 12px; --fs-m: 13px; --fs-body: 14px; --fs-l: 15px; --fs-xl: 18px; --fs-touch: 16px;
     --r-s: 6px; --r: 8px; --r-l: 10px;
   }
   :root[data-theme="dark"] {

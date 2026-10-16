@@ -16,6 +16,8 @@ Decisions and the reasons for them. Change the code and this together.
   say *Free anytime* or *Skip* (which clears their hours; anyone can still vote). Colours: nobody / 1 /
   2+ / everyone. *Everyone* = all who count: people who marked hours plus anyone online who hasn't yet;
   free-anytime people and skippers don't count. Hours are voted ±1 like pins.
+- Limits (area and time) are drawn, never tapped: a box needs a drag, so a stray tap can't narrow
+  everyone's choice.
 - **The pick**: the most-voted hour (score > 0; ties: more people free, then earlier) at the most-voted
   pin, picked automatically, shown in the room box with a button for an `.ics` (times in UTC, so every
   calendar shows its own zone). Its title is the huddle's name (editable in place at the top, also the

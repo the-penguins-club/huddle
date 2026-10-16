@@ -13,7 +13,7 @@
   .me { display: inline-flex; align-items: center; gap: 5px; min-width: 0; }
   .me .inline-edit { width: 12ch; padding: 1px 5px; font-size: var(--fs-s); }
   /* "<nick> text", wrapped lines indented a little */
-  #msgs { flex: 1; min-height: 0; overflow-y: auto; margin: 0; padding: 6px 0; list-style: none; font: 12.5px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  #msgs { flex: 1; min-height: 0; overflow-y: auto; margin: 0; padding: 6px 0; list-style: none; font: var(--fs-s)/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
   #msgs li { padding: 0 8px 0 calc(8px + 2ch); text-indent: -2ch; overflow-wrap: anywhere; }
   #msgs li.sys { color: var(--mut); }
   #msgs li.mention { background: color-mix(in srgb, var(--acc) 12%, transparent); box-shadow: inset 3px 0 var(--acc); }
