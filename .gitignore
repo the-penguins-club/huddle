@@ -2,8 +2,8 @@
 /index.html
 node_modules/
 
-rooms.json
-rooms.json.tmp
+# rooms (the server's DATA_DIR)
+/data/
 .env
 
 # agent scratch space and local agent settings

@@ -14,12 +14,12 @@ WORKDIR /app
 COPY server.js ./
 COPY --from=build /app/index.html ./
 
-# Rooms persist here. Created and owned by the unprivileged user *before* VOLUME, so a fresh
-# named volume inherits that ownership and the server can write to it.
-RUN mkdir /data && chown node:node /data
+# Rooms persist in /app/data (the server's default DATA_DIR). Created and owned by the unprivileged user
+# *before* VOLUME, so a fresh named volume inherits that ownership and the server can write to it.
+RUN mkdir /app/data && chown node:node /app/data
 # LAN_INFO=0: the container's own addresses mean nothing to anyone outside it.
-ENV HOST=0.0.0.0 PORT=8765 DATA_FILE=/data/rooms.json LAN_INFO=0
-VOLUME /data
+ENV HOST=0.0.0.0 PORT=8765 LAN_INFO=0
+VOLUME /app/data
 USER node
 EXPOSE 8765
 

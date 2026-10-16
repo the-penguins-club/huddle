@@ -3,7 +3,7 @@
 //
 //   node server.js                         # http://127.0.0.1:8765, this machine only
 //   HOST=0.0.0.0 node server.js            # reachable on your LAN
-//   PORT=3000 DATA_FILE=/data/rooms.json node server.js
+//   PORT=3000 DATA_DIR=/srv/huddle node server.js   # rooms in /srv/huddle/rooms.json (default: ./data)
 //   TRUST_PROXY=1                          # behind a reverse proxy (Traefik): limits go by X-Forwarded-For
 //   LAN_INFO=0                             # don't list this machine's addresses in /api/info
 //
@@ -21,7 +21,19 @@ const crypto = require('crypto');
 
 const PORT = Number(process.env.PORT) || 8765;
 const HOST = process.env.HOST || '127.0.0.1';
-const DATA_FILE = process.env.DATA_FILE || path.join(__dirname, 'rooms.json');
+// Rooms are saved in a folder of their own (with the save's temporary file, and any unreadable file
+// moved aside), so one directory or Docker volume holds everything that has to persist.
+const DATA_DIR = path.resolve(__dirname, process.env.DATA_DIR || 'data');
+const DATA_FILE = path.join(DATA_DIR, 'rooms.json');
+// Not writable (typically a host folder mounted into Docker, owned by someone other than the container's
+// user): stop now, rather than run and lose every change.
+try {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+  fs.accessSync(DATA_DIR, fs.constants.W_OK);
+} catch (e) {
+  console.error(`cannot write rooms to ${DATA_DIR} (${e.code}) as uid ${process.getuid?.()}: make the folder writable by that user`);
+  process.exit(1);
+}
 const PAGE = path.join(__dirname, 'index.html');   // built from src/ by build.js
 const TRUST_PROXY = process.env.TRUST_PROXY === '1';
 const LAN_INFO = process.env.LAN_INFO !== '0';

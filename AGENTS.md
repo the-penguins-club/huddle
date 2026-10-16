@@ -2,7 +2,7 @@
 
 Pick where and when a group meets: everyone drops pins on a map and marks the hours they're free, then
 votes on both; the most-voted place and hour are the plan. One page (`index.html`, built from `src/`)
-and one dependency-free Node server (`server.js`) holding rooms in memory, saved to `rooms.json`.
+and one dependency-free Node server (`server.js`) holding rooms in memory, saved to `data/rooms.json`.
 
 ## Commands
 

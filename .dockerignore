@@ -1,8 +1,7 @@
 .git
 .env
 .env.example
-rooms.json
-rooms.json.tmp
+data
 docker-compose.yml
 Dockerfile
 node_modules

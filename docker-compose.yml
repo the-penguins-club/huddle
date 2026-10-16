@@ -10,7 +10,11 @@ services:
     environment:
       - TRUST_PROXY=1   # behind Traefik: per-address limits go by the address it forwards
     volumes:
-      - randompin-data:/data
+      # Rooms live in /app/data. This named volume needs nothing else (it's the same volume as when it
+      # was mounted at /data). To keep them in a folder on the host instead, mount ./data:/app/data and
+      # let the container write to it: `sudo chown 1000:1000 data` (the image's node user), or run as
+      # yourself by adding user: "${UID}:${GID}" here and setting both in .env.
+      - randompin-data:/app/data
     networks:
       - traefik
     labels:

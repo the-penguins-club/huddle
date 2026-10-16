@@ -4,7 +4,7 @@
 
 | | |
 |---|---|
-| `server.js` | rooms over HTTP + SSE, validation, persistence to `rooms.json` (no dependencies) |
+| `server.js` | rooms over HTTP + SSE, validation, persistence to `data/rooms.json` (no dependencies) |
 | `index.html` | **built** from `src/` by `build.js`, not committed; what the server serves |
 | `build.js` | replaces each `<!-- @include path -->` line in `src/index.html` with that file, compiling `.styl` with Stylus (`--watch`) |
 | `package.json` | the build's one dependency (`stylus`, pinned; `package-lock.json`) and the npm scripts |
@@ -45,7 +45,8 @@
 
 - Rooms expire after 14 idle days; a room left with nothing in it is dropped when its last visitor
   goes; at `MAX_ROOMS` the least recently used empty-of-people room goes. Saving is throttled into
-  `DATA_FILE` (`rooms.json` locally), synchronous on SIGTERM/SIGINT; an unreadable file is moved aside.
+  `DATA_DIR/rooms.json` (`data/` locally, `/app/data` in Docker: mount it to keep rooms),
+  synchronous on SIGTERM/SIGINT; an unreadable file is moved aside.
 
 ## Page (`src/`)
 
