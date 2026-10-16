@@ -11,6 +11,8 @@ npm run watch           # rebuild index.html from src/ while you edit
 ```
 
 Deploy behind Traefik: copy `.env.example` to `.env`, set `DOMAIN`, `docker compose up -d --build`.
+On GitHub, every push to `main` (and every `v*` tag) also publishes the image to
+`ghcr.io/<owner>/<repo>`.
 
 Development notes for people and agents: [AGENTS.md](AGENTS.md), [docs/map.md](docs/map.md),
 [docs/design.md](docs/design.md).

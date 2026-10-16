@@ -11,6 +11,7 @@
 | `src/` | the page's source, below |
 | `dev/dummies.js` | fake room members for trying the UI with several people (`node dev/dummies.js room 6 10`) |
 | `Dockerfile`, `docker-compose.yml`, `.env.example` | one container behind Traefik (the image builds the page in a first stage); rooms on a volume |
+| `.github/workflows/build.yml` | builds the Docker image and pushes it to `ghcr.io/<owner>/<repo>` (main, `v*` tags, or by hand); nothing else |
 | `.githooks/pre-commit` | a build (the stylesheet must compile), `scripts/harness-sync.js --check`, `node --check`; refuses unstaged changes in what it checks |
 | `scripts/harness-sync.js` | rewrites this map's generated sections from the code (`--check` to verify) |
 | `.claude/` | agent hooks (rebuild and resync on edit; at stop, a nudge to update the docs) and the `verify-ui` skill |
