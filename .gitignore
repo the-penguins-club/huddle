@@ -1,3 +1,7 @@
 rooms.json
 rooms.json.tmp
 .env
+
+# agent scratch space and local agent settings
+.scratch/
+.claude/settings.local.json

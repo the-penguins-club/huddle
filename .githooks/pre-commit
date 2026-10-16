@@ -1,0 +1,7 @@
+#!/bin/sh
+# index.html must be what src/ builds, and the Node files must parse. Enable: git config core.hooksPath .githooks
+set -e
+node build.js --check
+node --check server.js
+node --check dev/dummies.js
+node --check build.js
