@@ -7,6 +7,7 @@
 | `server.js` | rooms over HTTP + SSE, validation, persistence to `data/rooms.json` (no dependencies) |
 | `index.html` | **built** from `src/` by `build.js`, not committed; what the server serves |
 | `build.js` | replaces each `<!-- @include path -->` line in `src/index.html` with that file, compiling `.styl` with Stylus (`--watch`) |
+| `LICENSE` | MIT |
 | `package.json` | the build's one dependency (`stylus`, pinned; `package-lock.json`) and the npm scripts |
 | `src/` | the page's source, below |
 | `dev/dummies.js` | fake room members for trying the UI with several people (`node dev/dummies.js room 6 10`) |

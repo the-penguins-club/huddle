@@ -2,6 +2,7 @@
   "name": "huddle",
   "private": true,
   "description": "Pick where and when a group meets: pins on a map, free hours on a calendar, votes on both.",
+  "license": "MIT",
   "scripts": {
     "start": "node build.js && node server.js",
     "build": "node build.js",

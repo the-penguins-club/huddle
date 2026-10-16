@@ -16,3 +16,5 @@ On GitHub, every push to `main` (and every `v*` tag) also publishes the image to
 
 Development notes for people and agents: [AGENTS.md](AGENTS.md), [docs/map.md](docs/map.md),
 [docs/design.md](docs/design.md).
+
+MIT licensed: see [LICENSE](LICENSE).
