@@ -32,5 +32,4 @@
   #peoplebtn { flex: none; gap: 4px; padding: 0 8px; color: var(--mut); font-variant-numeric: tabular-nums; }
   #peoplebtn svg { width: 15px; height: 15px; }
   #tabs { display: none; }   /* stacked layouts only */
-  body:not(.inroom) :is(#chat, #tabs) { display: none; }
 

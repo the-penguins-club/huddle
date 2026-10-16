@@ -13,15 +13,18 @@ const path = require('path');
 
 const SRC = path.join(__dirname, 'src');
 const OUT = path.join(__dirname, 'index.html');
-const INCLUDE = /^<!-- @include (\S+) -->\n/gm;
+const INCLUDE = /^<!-- @include (\S+) -->\r?\n/gm;
 
 function build() {
   const page = fs.readFileSync(path.join(SRC, 'index.html'), 'utf8');
-  return page.replace(INCLUDE, (_, file) => {
+  const out = page.replace(INCLUDE, (_, file) => {
     const text = fs.readFileSync(path.join(SRC, file), 'utf8');
     if (!text.endsWith('\n')) throw new Error(`src/${file} must end with a newline`);
     return text;
   });
+  const left = out.match(/^.*<!-- @include .*$/m);   // e.g. a stray space: it would ship as a comment
+  if (left) throw new Error(`malformed include line in src/index.html: ${left[0].trim()}`);
+  return out;
 }
 
 const mode = process.argv[2];

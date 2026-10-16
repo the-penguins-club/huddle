@@ -1,9 +1,6 @@
-/* ---------- multiplayer ---------- */
+/* ---------- room: connecting to it, its state as it arrives, the room box and the people list ---------- */
 
 function renderRoom() {
-  document.body.classList.toggle('inroom', !!roomId);
-  $('room').hidden = !roomId;
-  if (!roomId) return;
   $('dot').className = 'dot ' + status;
   const n = room.online.length;
   $('roomtxt').textContent = status === 'live' ? roomId
@@ -23,7 +20,8 @@ function renderRoom() {
     d.style[identicon ? 'borderColor' : 'background'] = room.players[c]?.color || 'gray';
     return d;
   };
-  $('members').hidden = scrim.hidden = !membersOpen || status !== 'live';
+  if (status !== 'live') membersOpen = false;   // (not reopening by itself on reconnect)
+  $('members').hidden = scrim.hidden = !membersOpen;
   if ($('members').hidden) return;
   const host = membersOpen === 'chat' ? $('chatform') : $('room');   // under "N online", or above the message box
   if ($('members').parentElement !== host) host.append($('members'));
@@ -62,9 +60,11 @@ fitName();
 $('myname').addEventListener('input', fitName);
 $('myname').addEventListener('change', () => {
   const v = $('myname').value.replace(/\s+/g, ' ').trim().slice(0, 16);   // (the server's MAX_NAME)
-  if (!v) { $('myname').value = myName; fitName(); return; }
+  $('myname').value = v || myName;
+  fitName();
+  if (!v) return;
   myName = v; store.set(K.name, v);
-  if (roomId) post({ type: 'rename', name: v });
+  post({ type: 'rename', name: v });
 });
 
 let firstState = true, seedArea = null, fitOnFirst = false, helpText = '';
@@ -75,7 +75,7 @@ function applyState(s) {
   const wasOnline = new Set(room.online);
   room.players = s.players; room.online = s.online;
   if (!first) presence(wasOnline, new Set(s.online));
-  pins = s.pins.map(normalize);
+  pins = s.pins;
 
   // Area: server is the source of truth. A room's creator seeds it once with their current area.
   const same = JSON.stringify(s.area) === JSON.stringify(areaArr());
@@ -84,25 +84,23 @@ function applyState(s) {
     setArea(s.area);
     if (!first && s.areaBy !== cid) notice(`${nameOf(s.areaBy)} ${s.area ? 'updated' : 'cleared'} the area`);
   }
-  if (first && fitOnFirst && s.area) fitArea();
+  if (first && fitOnFirst && s.area) { initialFit = fitArea; fitArea(); }   // (and the load-time refit fits the area too)
   if (first) seedArea = null;
 
-  // "fresh" = new pins plus pins that moved (same id, new spot)
-  const fresh = first ? [] : pins.filter((p) => { const o = prev.get(p.id); return !o || o.lat !== p.lat || o.lng !== p.lng; });
+  // New pins: yours gets selected (and scrolled to in the list), others' get a note.
+  const fresh = first ? [] : pins.filter((p) => !prev.has(p.id));
   const mine = fresh.find((p) => p.by === cid);
-  if (mine) { selectedId = mine.id; showNewest(); }
+  if (mine) selectedId = mine.id;
   const theirs = fresh.filter((p) => p.by !== cid);
-  if (theirs.length) {
-    const t = theirs[0];
-    notice(`${nameOf(t.by)} ${prev.has(t.id) ? `moved their pin #${t.n}` : `dropped pin #${t.n}`}${theirs.length > 1 ? ` (+${theirs.length - 1})` : ''}`);
-  }
+  if (theirs.length) notice(`${nameOf(theirs[0].by)} dropped pin #${theirs[0].n}${theirs.length > 1 ? ` (+${theirs.length - 1})` : ''}`);
   syncMarkers(fresh.map((p) => p.id));
   renderList();
+  if (mine) $('list').querySelector('.sel')?.scrollIntoView({ block: 'nearest' });
   renderRoom();
   const sig = JSON.stringify(s.players);   // chat names follow renames
   if (sig !== chatSig) { chatSig = sig; renderChat(); }
   refreshPinRefs();   // labels and owners behind "#n" links
-  room.range = s.range; room.avail = s.avail || {}; room.tstat = s.tstat || {}; room.tvotes = s.tvotes || {}; room.event = s.event; renderHname();
+  room.range = s.range; room.avail = s.avail; room.tstat = s.tstat; room.tvotes = s.tvotes; room.event = s.event; renderHname();
   renderTime();
 }
 
@@ -112,9 +110,9 @@ function connect(id, seed = null) {
   es?.close();
   roomId = id; seedArea = seed; firstState = true; status = 'connecting';
   fitOnFirst = !parseHash().view;
-  room = { players: {}, online: [] };
+  room = blankRoom();   // nothing of the last room shows under the new id while this one loads
   pins = []; selectedId = null; chat = []; chatSig = '';
-  syncMarkers(); renderList(); renderRoom(); renderChat();
+  syncMarkers(); renderList(); renderRoom(); renderChat(); renderHname(); renderTime();
   es = new EventSource(`/api/rooms/${id}/events?${new URLSearchParams({ cid, name: myName })}`);
   es.addEventListener('state', (e) => { status = 'live'; helpText = ''; applyState(JSON.parse(e.data)); });
   // Full history on every (re)connect, then one message per event.
@@ -141,10 +139,8 @@ async function diagnose(id) {
   try { serverInfo = await (await fetch('/api/info')).json(); } catch {
     return `${location.host} is not running server.js (static files only, e.g. python -m http.server). ${RUN_HINT}`;
   }
-  const ac = new AbortController();
   try {
-    const r = await fetch(`/api/rooms/${id}/events?cid=${cid}`, { signal: ac.signal });
-    ac.abort();
+    const r = await fetch(`/api/rooms/${id}/events?cid=${cid}`, { method: 'HEAD' });   // would it open? (without joining)
     return r.ok
       ? 'The server is up but the live stream is being cut off. A proxy or tunnel in front of it may be buffering event streams.'
       : `The server refused this room (HTTP ${r.status}).`;
@@ -153,7 +149,7 @@ async function diagnose(id) {
 
 // A fresh room, empty and with a new link; the old one carries on for whoever's still in it.
 function newRoom() {
-  setTab('pins'); setView('space');
+  setTab('pins');
   connect(roomCode());
   updateUrl();
   notice('New huddle. The link button next to Drop copies an invite link.');

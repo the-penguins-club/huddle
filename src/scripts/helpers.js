@@ -1,3 +1,5 @@
+/* ---------- helpers: building elements, random ids, and who you are (your id and name) ---------- */
+
 function el(tag, props = {}, ...kids) {
   const e = Object.assign(document.createElement(tag), props);
   e.append(...kids);

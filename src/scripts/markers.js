@@ -1,4 +1,4 @@
-/* ---------- markers ---------- */
+/* ---------- markers: pins on the map (avatars, size by votes), merges, and random spots ---------- */
 
 // Player avatars: minidenticons (<1 KB, MIT) turns a player id into a small symmetric pixel avatar,
 // the same on every screen. Pins show their dropper's avatar; if the library can't load they keep
@@ -66,7 +66,7 @@ function syncMarkers(animate = []) {
       m = L.marker([p.lat, p.lng], { title: `#${p.n}` }).addTo(map);
       m.on('click', () => select(p.id, false));
       markers.set(p.id, m);
-    } else if (m.getLatLng().lat !== p.lat || m.getLatLng().lng !== p.lng) m.setLatLng([p.lat, p.lng]);   // a moved pin
+    }
     const sig = `${p.n}|${i === 0}|${colorOf(p.by)}|${!!identicon}`;
     if (m._sig !== sig) { m.setIcon(pinIcon(p, i === 0)); m._sig = sig; }
     if (m._label !== (p.label || '')) {
@@ -121,7 +121,8 @@ function showMerge(m) {
 }
 
 // Uniform in screen space (Web Mercator), so pins don't bunch toward the poles in tall areas:
-// random points in the area's bounding box (or the visible map) until one is inside the shape.
+// random points in the area's bounding box (or the visible map, minus anything past the poles' cut-off)
+// until one is inside the shape.
 // Bounds are unwrapped, so areas crossing the antimeridian work; wrapLatLng folds the result back.
 // Prefers spots at least MERGE_M from every pin, so a drop is a new place rather than a merge; when
 // the area has none left, the first spot inside it (which then merges into its nearest pin).
@@ -132,7 +133,8 @@ function randomPoint() {
   let fallback = null;
   for (let i = 0; i < tries; i++) {
     const ll = map.wrapLatLng(map.unproject(L.point(a.x + Math.random() * (c.x - a.x), a.y + Math.random() * (c.y - a.y)), Z));
-    const p = { lat: Math.max(-85, Math.min(85, ll.lat)), lng: ll.lng };
+    if (Math.abs(ll.lat) > 85) continue;
+    const p = { lat: ll.lat, lng: ll.lng };
     if (!inArea(p.lat, p.lng)) continue;   // the server runs the same test
     if (!nearestPin(p.lat, p.lng)) return p;
     fallback ??= p;

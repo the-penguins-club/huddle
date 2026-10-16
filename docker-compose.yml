@@ -6,6 +6,8 @@ services:
   randompin:
     build: .
     restart: unless-stopped
+    environment:
+      - TRUST_PROXY=1   # behind Traefik: per-address limits go by the address it forwards
     volumes:
       - randompin-data:/data
     networks:

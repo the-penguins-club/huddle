@@ -1,13 +1,11 @@
-/* ---------- history list ---------- */
-
-const showNewest = () => $('list').firstElementChild?.scrollIntoView({ block: 'nearest' });
+/* ---------- pin list: the room's pins, newest or top first, with votes; sort and "Clear mine" ---------- */
 
 function renderList() {
   const list = $('list');
   const mine = pins.filter((p) => p.by === cid).length;
   $('count').textContent = pins.length ? `Pins · ${pins.length}` : 'Pins';
   $('clear').hidden = !mine;
-  $('clear').textContent = 'Clear mine';
+  $('clear').textContent = clearTimer ? `Click again to delete ${mine}` : 'Clear mine';   // (re-renders keep the confirm)
   $('sort').textContent = `Sort: ${sortMode === 'top' ? 'top' : 'newest'}`;
   updatePlaceBtn();
   renderDetail();
@@ -59,3 +57,19 @@ function renderList() {
   }
 }
 
+$('sort').addEventListener('click', () => { sortMode = sortMode === 'top' ? 'new' : 'top'; store.set(K.sort, sortMode); renderList(); });
+
+// Clear mine: a two-step confirm inline, since native confirm() is silently suppressed in some embedded
+// browsers (and after "prevent additional dialogs").
+let clearTimer = null;
+$('clear').addEventListener('click', () => {
+  if (!clearTimer) {
+    clearTimer = setTimeout(() => { clearTimer = null; renderList(); }, 3000);
+    renderList();
+    return;
+  }
+  clearTimeout(clearTimer); clearTimer = null;
+  selectedId = null;
+  post({ type: 'clearMine' });
+  renderList();
+});

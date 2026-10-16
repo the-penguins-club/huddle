@@ -1,7 +1,14 @@
 #!/bin/sh
-# index.html must be what src/ builds, and the Node files must parse. Enable: git config core.hooksPath .githooks
+# Mechanical checks only, so the hook works the same with or without an agent:
+# index.html must be what src/ builds, docs/map.md's generated sections must match the code, and the
+# Node files must parse. Enable: git config core.hooksPath .githooks
 set -e
+if ! git diff --quiet -- src index.html docs/map.md server.js; then
+  echo 'unstaged changes in src/, index.html, docs/map.md or server.js: stage them (or stash them) first'
+  exit 1
+fi
 node build.js --check
+node scripts/harness-sync.js --check
 node --check server.js
 node --check dev/dummies.js
 node --check build.js

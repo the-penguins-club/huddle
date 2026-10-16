@@ -1,4 +1,6 @@
   /* ---------- 2. base ---------- */
+
+  /* Base: box sizing, type, focus rings, placeholders, headings, and [hidden]. */
   * { box-sizing: border-box; }
   html, body { height: 100%; margin: 0; }
   body { background: var(--canvas); color: var(--fg); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }

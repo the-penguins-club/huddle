@@ -1,9 +1,10 @@
 /* ---------- actions: sent to the server, which broadcasts the new state ---------- */
 
-// Resolves to the error message, or null when the server took the action.
+// Resolves to the error message, or null when the server took the action. Only a page connected to the
+// room can act in it, so while it's (re)connecting nothing is sent.
 async function post(action) {
-  let err = null;
-  try {
+  let err = status === 'live' ? null : 'Not connected right now: that was not sent.';
+  if (!err) try {
     const r = await fetch(`/api/rooms/${roomId}/action`, {
       method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ cid, ...action }),
     });
@@ -35,22 +36,14 @@ function removePin(id) {
   post({ type: 'delete', pin: id });
 }
 
-// Two-step confirm inline: native confirm() is silently suppressed in some
-// embedded browsers / after "prevent additional dialogs", which made this a no-op.
-let clearTimer = null;
-function resetClearBtn() { clearTimeout(clearTimer); clearTimer = null; renderList(); }
-$('clear').addEventListener('click', () => {
-  const mine = pins.filter((p) => p.by === cid).length;
-  if (!clearTimer) {
-    $('clear').textContent = `Click again to delete ${mine}`;
-    clearTimer = setTimeout(resetClearBtn, 3000);
-    return;
-  }
-  clearTimeout(clearTimer); clearTimer = null;
-  selectedId = null;
-  post({ type: 'clearMine' });
-  renderList();
-});
-
 $('drop').addEventListener('click', dropPin);
+
+// Esc steps back out of the map's modes: drawing an area, placing a pin, then the selected pin. (The
+// tutorial, the people list and the calendar's Limit time catch it first.)
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  if (drawMode) setDrawMode(false);
+  else if (placeMode) setPlaceMode(false);
+  else if (selectedId) { selectedId = null; renderList(); }
+});
 

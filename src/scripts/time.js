@@ -1,57 +1,63 @@
-/* ---------- time: when everyone is free (rooms) ---------- */
+/* ---------- time: the calendar everyone marks their free hours on, and its list of hours ---------- */
 
 // The room's grid: `days` days from `start`, hours `from`..`to`, in time zone `tz` (see server.js).
 // Each cell is an hour, stored as the absolute instant it starts, so the grid is drawn in the room's
 // zone and anyone elsewhere is told so.
 const HOUR = 3600e3;
 const myTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-let view = 'space', tSel = null, paint = null;   // tSel: the hour clicked in the list (outlined on the calendar)
+let tSel = null, paint = null;   // tSel: the hour clicked in the list (outlined on the calendar)
 
+// Date formatters are slow to make and the calendar formats thousands of times a render: keep them.
+const dtfs = new Map();
+function dtf(locale, o) {
+  const k = `${locale}|${JSON.stringify(o)}`;
+  if (!dtfs.has(k)) dtfs.set(k, new Intl.DateTimeFormat(locale || [], o));
+  return dtfs.get(k);
+}
+const partsIn = (ms, tz) => Object.fromEntries(dtf('en-US', { timeZone: tz, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' })
+  .formatToParts(ms).map((x) => [x.type, x.value]));
 // Minutes `tz` is ahead of UTC at instant `ms`.
 function tzOffset(ms, tz) {
-  const p = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: tz, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' })
-    .formatToParts(ms).map((x) => [x.type, x.value]));
+  const p = partsIn(ms, tz);
   return (Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute, +p.second) - Math.floor(ms / 1000) * 1000) / 60e3;
 }
-// The instant it's `hour`:00 on day `start` + `day` in `tz`.
-function zonedHour(start, day, hour, tz) {
-  const [y, m, d] = start.split('-').map(Number), wall = Date.UTC(y, m - 1, d + day, hour);
+// The instant it's `hour`:`min` on day `start` + `day` in `tz`, or null where the clocks skip that
+// time (the hour lost when daylight saving starts: the calendar leaves a gap there).
+function zonedHour(start, day, hour, tz, min = 0) {
+  const [y, m, d] = start.split('-').map(Number), wall = Date.UTC(y, m - 1, d + day, hour, min);
   let t = wall;
   for (let i = 0; i < 2; i++) t = wall - tzOffset(t, tz) * 60e3;   // twice settles a DST edge
-  return t;
+  return t + tzOffset(t, tz) * 60e3 === wall ? t : null;
 }
-const todayIn = (tz) => new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(Date.now());
+const todayIn = (tz) => { const p = partsIn(Date.now(), tz); return `${p.year}-${p.month}-${p.day}`; };
 // What the grid shows. With a time limit (someone's box, like the map's limit area): just that range,
 // stretched to fill the view, the way the map zooms to its area. Without one: four weeks from today,
 // all 24 hours, in your own time zone; either way 7 days fit at once and more scroll sideways.
-const gridSpec = () => (room.range ? { ...room.range, fit: true } : { tz: myTz, start: todayIn(myTz), days: 28, from: 0, to: 24, fit: false });
+const gridSpec = () => (room.range ? { ...room.range, min: 0, fit: true } : { tz: myTz, start: todayIn(myTz), days: 28, from: 0, to: 24, min: roomMinute(), fit: false });
+// Without a limit everyone sees their own zone, but zones aren't all whole hours apart (India is
+// +5:30, Nepal +5:45): there, hours start at the minute most of the room's marked hours start on, so
+// "10:30" here is the "05:00" someone in London marked. With nothing marked yet, at :00.
+function roomMinute() {
+  const n = new Map();
+  const count = (x) => { const k = (x / 60e3) % 60; n.set(k, (n.get(k) || 0) + 1); };   // the minute in UTC
+  for (const list of Object.values(room.avail)) list.forEach(count);
+  Object.keys(room.tvotes).forEach((x) => count(+x));
+  if (!n.size) return 0;
+  const [utcMin] = [...n].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0];
+  return (((utcMin + tzOffset(Date.now(), myTz)) % 60) + 60) % 60;
+}
 let tLimitMode = false, limitBox = null;   // drawing a time limit: the box so far, {from: [d, h], to: [d, h]}
-const fmtIn = (ms, tz, o) => new Intl.DateTimeFormat([], { timeZone: tz, ...o }).format(ms);
-const hourLabel = (h) => `${String(h % 24).padStart(2, '0')}:00`;
+const fmtIn = (ms, tz, o) => dtf('', { timeZone: tz, ...o }).format(ms);
+const hourLabel = (h, min) => `${String(h % 24).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
 // "Fri 16": built from parts, since some locales put the day first ("16 Fri").
 const dayLabel = (ms, tz) => `${fmtIn(ms, tz, { weekday: 'short' })} ${fmtIn(ms, tz, { day: 'numeric' })}`;
 const slotLabel = (ms, tz) => `${fmtIn(ms, tz, { weekday: 'short', day: 'numeric', month: 'short' })}, ${fmtIn(ms, tz, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })}`;
-
-function setView(v) {
-  view = roomId ? v : 'space';
-  store.set(K.tab, { view, tab });
-  document.body.classList.toggle('view-time', view === 'time');
-  $('time').hidden = view !== 'time';
-  for (const b of $('views').children) b.setAttribute('aria-selected', String(b.dataset.v === view));
-  (view === 'time' ? $('time') : cont).append(toasts);   // notes and chat pop-ups follow the visible view
-  if (view !== 'time') setLimitMode(false);
-  renderTime();
-}
-for (const b of $('views').children) b.addEventListener('click', () => setView(b.dataset.v));
-// Crossing into the phone layout while on Time: show it as the Time tab.
-tabMQ.addEventListener('change', () => { if (tabMQ.matches) setTab(view === 'time' ? 'time' : tab === 'time' ? 'pins' : tab); });
-// Widening a phone past the Chat tab: back to the map or calendar tab.
-phoneMQ.addEventListener('change', () => { if (tabMQ.matches) setTab(tab); });
 
 // Limit time: draw a box on the calendar (days × hours) to set the range everyone picks and votes
 // within; while one is set, the button clears it. Same idea as the map's Limit area.
 function setLimitMode(on) {
   tLimitMode = on; limitBox = null;
+  if (paint?.kind === 'limit') paint = null;   // Esc mid-drag: drop the box
   renderTime();
 }
 $('tlimit').addEventListener('click', () => {
@@ -74,9 +80,6 @@ function setAnswer(v) {
 }
 $('tany').addEventListener('click', () => setAnswer(room.tstat?.[cid] === 'any' ? 'hours' : 'any'));
 $('tskip').addEventListener('click', () => setAnswer(room.tstat?.[cid] === 'out' ? 'hours' : 'out'));
-
-// The calendar file's button (in the room box, with the pick).
-const CAL_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18M12 14v4M10 16h4"/></svg>';
 
 // Clear mine: all your hours, with the same click-twice confirm as the pin list's.
 let tClearTimer = null;
@@ -106,7 +109,6 @@ function freeBySlot() {
   for (const [c, list] of Object.entries(avail)) for (const x of list) (m.get(x) ?? m.set(x, []).get(x)).push(c);
   return m;
 }
-const topPin = () => [...pins].sort((a, b) => score(b) - score(a) || b.ts - a.ts).find((p) => score(p) > 0) || null;
 
 // Who counts: everyone answering by hours, i.e. who hasn't said "free anytime" or "skip": the people
 // who painted hours here, and anyone online who hasn't yet. An hour is everyone's (green) only when all
@@ -130,13 +132,13 @@ function hourState(who, N, x) {
   return { f, n, all, cls: all ? 'all' : n >= 2 ? 'some' : n === 1 ? 'one' : 'nofree' };
 }
 
-// The calendar's hours, as instants (cached: working them out takes a while).
+// The calendar's hours, as instants, day by day (null in a DST gap; cached: working them out takes a while).
 let slotCache = { key: '', slots: [] };
 function rangeSlots(r) {
-  const key = [r.tz, r.start, r.days, r.from, r.to].join('|');
+  const key = [r.tz, r.start, r.days, r.from, r.to, r.min].join('|');
   if (slotCache.key !== key) {
     const slots = [];
-    for (let d = 0; d < r.days; d++) for (let h = r.from; h < r.to; h++) slots.push(zonedHour(r.start, d, h, r.tz));
+    for (let d = 0; d < r.days; d++) for (let h = r.from; h < r.to; h++) slots.push(zonedHour(r.start, d, h, r.tz, r.min));
     slotCache = { key, slots };
   }
   return slotCache.slots;
@@ -149,20 +151,20 @@ const signed = (n) => (n > 0 ? `+${n}` : String(n));
 // (two or more free, everyone free, or voted on) best first, and the pick: the most-voted hour, picked
 // automatically like the most-voted pin (ties: more people free, then earlier).
 function timeModel() {
-  const r = gridSpec(), slots = rangeSlots(r), free = freeBySlot();
+  const r = gridSpec(), cells = rangeSlots(r), slots = cells.filter((x) => x != null), free = freeBySlot();
   const who = timeWho(slots, free), N = who.counted.length;
   const st = new Map(slots.map((x) => [x, hourState(who, N, x)]));
   const ranked = slots.filter((x) => st.get(x).n >= 2 || st.get(x).all || Object.keys(tVotesOf(x)).length)
     .sort((a, b) => tScore(b) - tScore(a) || st.get(b).n - st.get(a).n || a - b);
   const top = ranked.length && tScore(ranked[0]) > 0 ? ranked[0] : null;
-  return { r, slots, free, who, N, st, ranked, top };
+  return { r, cells, free, who, N, st, ranked, top };
 }
 
 function renderTime() {
-  const m = roomId ? timeModel() : null;
+  const m = timeModel();
   renderPick(m);
-  if (view !== 'time' || !m) return;
-  const { r, slots, free, who, N, st, ranked, top } = m, tz = r.tz;
+  if (view !== 'time') return;
+  const { r, cells: slots, free, who, N, st, ranked, top } = m, tz = r.tz;
   $('ttz').textContent = tz === myTz ? '' : `Times in ${tz} (you're in ${myTz})`;
   $('tlimit').textContent = tLimitMode ? 'Drag a box… (Esc)' : room.range ? 'Time limited ×' : 'Limit time';
   $('tlimit').classList.toggle('set', !!room.range && !tLimitMode);
@@ -194,12 +196,18 @@ function renderTime() {
   const at = (d, h) => {
     if (h < r.from || h >= r.to) return null;
     const x = slots[d * (r.to - r.from) + (h - r.from)];
-    return { x, ...st.get(x), mine: (free.get(x) || []).includes(cid) };
+    return x == null ? { x, cls: 'gap', n: 0 } : { x, ...st.get(x), mine: (free.get(x) || []).includes(cid) };
   };
   for (let h = r.from; h < r.to; h++) {
-    cells.push(el('div', { className: 'hh' }, hourLabel(h)));
+    cells.push(el('div', { className: 'hh' }, hourLabel(h, r.min)));
     for (let d = 0; d < r.days; d++) {
       const q = at(d, h), up = at(d, h - 1), down = at(d, h + 1), { x, f, n, all, mine } = q;
+      if (x == null) {   // skipped by the clocks
+        const c = el('div', { className: 'c gap', title: 'This hour doesn\'t happen here: the clocks go forward' });
+        c.dataset.d = d; c.dataset.h = h;
+        cells.push(c);
+        continue;
+      }
       const same = (o) => o && o.cls === q.cls && o.n === q.n;
       const cls = ['c', q.cls, h === r.from && 'first', h === r.to - 1 && 'last',
         n && !same(up) && 'runtop', n && !same(down) && 'runend',
@@ -262,8 +270,13 @@ $('tgrid').addEventListener('pointerdown', (e) => {
   const c = e.target.closest('.c');
   if (!c || e.button !== 0) return;
   if (e.pointerType === 'touch') {
+    if (hold || paint) {   // a second finger: a pinch or a scroll, not a stroke
+      if (hold) { clearTimeout(hold.timer); hold = null; }
+      return;
+    }
     hold = { id: e.pointerId, x: e.clientX, y: e.clientY, cell: c, timer: setTimeout(() => {
       const h = hold;
+      if (!h) return;
       hold = null;
       navigator.vibrate?.(10);
       beginStroke(h.cell, h.id);
@@ -302,9 +315,12 @@ function edgeScroll() {
   paint.raf = requestAnimationFrame(edgeScroll);
 }
 function fillStroke() {
-  const r = gridSpec(), [d0, h0] = paint.from, [d1, h1] = paint.to, cells = new Set();
+  const r = gridSpec(), slots = rangeSlots(r), [d0, h0] = paint.from, [d1, h1] = paint.to, cells = new Set();
   for (let d = Math.min(d0, d1); d <= Math.max(d0, d1); d++) {
-    for (let h = Math.min(h0, h1); h <= Math.max(h0, h1); h++) cells.add(zonedHour(r.start, d, h, r.tz));
+    for (let h = Math.min(h0, h1); h <= Math.max(h0, h1); h++) {
+      const x = slots[d * (r.to - r.from) + (h - r.from)];
+      if (x != null) cells.add(x);
+    }
   }
   if (paint.mode === 'add') { paint.add = cells; paint.remove = new Set(); } else { paint.remove = cells; paint.add = new Set(); }
   renderTime();
@@ -322,14 +338,21 @@ function endStroke() {
     $('time').scrollTo(0, 0);
     return;
   }
-  const { add, remove } = paint;
-  const mine = new Set(room.avail?.[cid] || []);
+  const { add, remove } = paint, before = room.avail[cid];
+  const mine = new Set(before || []);
   for (const x of add) mine.add(x);
   for (const x of remove) mine.delete(x);
-  room.avail = { ...room.avail, [cid]: [...mine] };   // shown now; the server's state confirms it
+  const after = [...mine];
+  room.avail = { ...room.avail, [cid]: after };   // shown now; the server's state confirms it
   paint = null;
   renderTime();
-  if (add.size || remove.size) post({ type: 'avail', add: [...add], remove: [...remove] });
+  if (!add.size && !remove.size) return;
+  post({ type: 'avail', add: [...add], remove: [...remove] }).then((err) => {
+    if (!err || room.avail[cid] !== after) return;   // taken, or newer state has arrived since
+    room.avail = { ...room.avail, [cid]: before };   // refused: take the stroke back
+    if (!before) delete room.avail[cid];
+    renderTime();
+  });
 }
 $('tgrid').addEventListener('pointerup', (e) => {
   if (hold && e.pointerId === hold.id) {   // a tap: just that hour
@@ -345,94 +368,3 @@ $('tgrid').addEventListener('pointercancel', (e) => {
   if (hold && e.pointerId === hold.id) { clearTimeout(hold.timer); hold = null; return; }
   endStroke();
 });
-
-// The tutorial's example pick, shown in the room box while it points there and nothing's picked yet.
-let tutDemo = false;
-function setDemo(on) {
-  if (on === tutDemo) return;
-  tutDemo = on && $('pick').hidden;
-  if (!tutDemo) { renderTime(); return; }
-  const d = new Date(); d.setDate(d.getDate() + ((6 - d.getDay() + 7) % 7 || 7)); d.setHours(18, 0, 0, 0);   // next Saturday, 18:00
-  const ics = el('button', { type: 'button', className: 'btn icon', disabled: true, title: 'Add to your calendar (.ics)' });
-  ics.innerHTML = CAL_ICON;
-  $('pick').hidden = false;
-  $('pick').replaceChildren(el('div', { className: 'pick' },
-    el('div', { className: 'pick-head', title: 'Most voted (an example)' }, el('span', {}, '★'), el('span', { className: 'pick-label' }, 'Most voted, example'), el('span', {}, 'e.g.')),
-    el('div', { className: 'pick-when' }, slotLabel(d.getTime(), myTz)),
-    el('div', { className: 'pick-where' }, 'at ', el('b', {}, '#1 Rooftop cafe')), ics));
-}
-
-// The pick, in the room box (both views): the most-voted hour, at the most-voted pin if there is one,
-// and a button to add it to your calendar.
-function renderPick(m) {
-  const box = $('pick'), x = m?.top ?? null;
-  if (tutDemo) return;   // the tutorial's example is showing
-  if (x == null) { box.replaceChildren(); box.hidden = true; return; }
-  const p = topPin(), l = { slot: x, len: HOUR };
-  const ics = el('button', { type: 'button', className: 'btn icon', title: 'Add to your calendar (.ics)', ariaLabel: 'Add to calendar' });
-  ics.innerHTML = CAL_ICON;
-  ics.addEventListener('click', () => downloadIcs(l, p));
-  box.hidden = false;
-  box.replaceChildren(el('div', { className: 'pick' },
-    el('div', { className: 'pick-head', title: `Most voted: ${signed(tScore(x))}` }, el('span', {}, '★'), el('span', { className: 'pick-label' }, 'Most voted:'), el('span', {}, signed(tScore(x)))),
-    el('div', { className: 'pick-when', title: slotLabel(x, m.r.tz) }, slotLabel(x, m.r.tz)),
-    ...(p ? [el('div', { className: 'pick-where', title: `at #${p.n}${p.label ? ` ${p.label}` : ''}` }, 'at ', el('b', {}, `#${p.n}${p.label ? ` ${p.label}` : ''}`))] : []), ics));
-}
-// The huddle's name, at the top: editable in place by anyone, the title of everyone's calendar event,
-// and the browser tab's. Empty, it reads "Huddle". The box is as wide as the name.
-const hname = $('hname');
-const huddleName = () => room.event?.title || 'Huddle';
-const fitHname = () => { hname.size = Math.max(6, (hname.value || hname.placeholder).length + 1); hname.title = hname.value || 'This huddle\'s name, and its calendar event\'s title: click to change it'; };
-function renderHname() {
-  if (document.activeElement !== hname) hname.value = room.event?.title || '';
-  fitHname();
-  if (!document.title.startsWith('(@)')) document.title = huddleName();   // (an unseen mention keeps its mark)
-}
-hname.addEventListener('input', fitHname);
-fitHname();
-hname.addEventListener('change', () => post({ type: 'event', title: hname.value }));
-hname.addEventListener('keydown', (e) => { if (e.key === 'Enter') hname.blur(); else if (e.key === 'Escape') { hname.value = room.event?.title || ''; hname.blur(); } });
-
-// An .ics file for the picked time and place (RFC 5545: CRLF lines, folded at 75 octets). The time is
-// written in your own time zone; the location is the pin's link on the map you have selected (Google
-// or OSM); the title is the huddle's name.
-function downloadIcs(l, p) {
-  const stamp = (ms) => new Date(ms).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
-  const wall = (ms) => {   // local wall-clock time in myTz, as 20261017T110000
-    const q = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: myTz, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' })
-      .formatToParts(ms).map((x) => [x.type, x.value]));
-    return `${q.year}${q.month}${q.day}T${q.hour}${q.minute}${q.second}`;
-  };
-  const off = (ms) => { const m = tzOffset(ms, myTz), a = Math.abs(m); return `${m < 0 ? '-' : '+'}${String(Math.floor(a / 60)).padStart(2, '0')}${String(a % 60).padStart(2, '0')}`; };
-  const text = (s) => String(s).replace(/[\;,]/g, (c) => `\\${c}`).replace(/\n/g, '\\n');
-  const foldLine = (line) => {
-    const out = [];
-    let cur = '';
-    for (const ch of line) {
-      if (new TextEncoder().encode(cur + ch).length > (out.length ? 74 : 75)) { out.push(cur); cur = ''; }
-      cur += ch;
-    }
-    return [...out, cur].join('\r\n ');
-  };
-  const ev = room.event || {}, end = l.slot + (l.len || HOUR);
-  const mapLink = p ? (base === 'google' ? gmapsUrl(p) : osmUrl(p)) : '';
-  const lines = [
-    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Huddle//Huddle//EN', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
-    // The zone's offset at the event (zones that change offset are approximated by that one offset).
-    'BEGIN:VTIMEZONE', `TZID:${myTz}`, 'BEGIN:STANDARD', 'DTSTART:19700101T000000', `TZOFFSETFROM:${off(l.slot)}`, `TZOFFSETTO:${off(l.slot)}`, 'END:STANDARD', 'END:VTIMEZONE',
-    'BEGIN:VEVENT',
-    `UID:${roomId}-${l.slot}@huddle`,
-    `DTSTAMP:${stamp(Date.now())}`,
-    `DTSTART;TZID=${myTz}:${wall(l.slot)}`,
-    `DTEND;TZID=${myTz}:${wall(end)}`,
-    `SUMMARY:${text(ev.title || (p?.label ? `Huddle at ${p.label}` : 'Huddle'))}`,
-    ...(p ? [`LOCATION:${text(mapLink)}`, `GEO:${p.lat.toFixed(6)};${p.lng.toFixed(6)}`] : []),
-    `DESCRIPTION:${text([p && `Place: #${p.n}${p.label ? ` ${p.label}` : ''}`, `Room: ${shareUrl().href}`].filter(Boolean).join('\n'))}`,
-    `URL:${shareUrl().href}`,
-    'END:VEVENT', 'END:VCALENDAR',
-  ];
-  const a = el('a', { href: URL.createObjectURL(new Blob([lines.map(foldLine).join('\r\n') + '\r\n'], { type: 'text/calendar' })), download: 'huddle.ics' });
-  document.body.append(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-}
-

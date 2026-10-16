@@ -10,62 +10,98 @@
 | `src/` | the page's source, below |
 | `dev/dummies.js` | fake room members for trying the UI with several people (`node dev/dummies.js room 6 10`) |
 | `Dockerfile`, `docker-compose.yml`, `.env.example` | one container behind Traefik; rooms on a volume |
-| `.githooks/pre-commit` | `build.js --check` and `node --check` |
-| `.claude/` | agent settings (rebuild on edit) and the `verify-ui` skill |
+| `.githooks/pre-commit` | `build.js --check`, `scripts/harness-sync.js --check`, `node --check`; refuses unstaged changes in what it checks |
+| `scripts/harness-sync.js` | rewrites this map's generated sections from the code (`--check` to verify) |
+| `.claude/` | agent hooks (rebuild and resync on edit; at stop, a nudge to update the docs) and the `verify-ui` skill |
 | `docs/` | this map, `design.md` (decisions), `lessons.md` (gotchas) |
 
 ## Server (`server.js`)
 
-- `GET /` serves `index.html` (read per request); `GET /api/info` gives LAN addresses and port.
-- `GET /api/rooms/:id/events?cid=&name=`: an SSE stream; being connected is being online. Events:
-  `state` (the room's snapshot), `chat` (history first, then each message), `merge` (a pin joined another).
-- `POST /api/rooms/:id/action` with `{cid, type, …}`. Types: `drop`, `place` (pins; within 100 m of one
-  they merge into a vote for it), `vote`, `label`, `delete`, `clearMine`, `area`, `rename`, `chat`,
-  `event` (the huddle's name), `range` (time limit), `avail` (free hours), `tstat` (hours / any / out),
-  `tvote` (±1 or 0 on an hour). Limits are the constants at the top (`MAX_*`).
-- Rooms expire after 14 idle days; saving is debounced into `DATA_FILE` (`rooms.json` locally).
+- `GET /` serves `index.html` (read per request); `GET /api/info` gives LAN addresses (unless `LAN_INFO=0`) and port.
+- `GET /api/rooms/:id/events?cid=&name=`: an SSE stream; opening it creates the room, being connected is
+  being online. Events: `state` (the room's snapshot), `chat` (history first, then each message),
+  `merge` (a pin joined another). `HEAD` on it only says whether it would open.
+- `POST /api/rooms/:id/action` with `{cid, type, …}`, only from a `cid` connected to the room (else 403).
+  Caps are the `MAX_*` constants at the top; limits go per IP (`TRUST_PROXY=1`: the proxy's
+  `X-Forwarded-For`). Types:
+
+<!-- generated: actions -->
+- `chat`: a message, sent to everyone (not part of the room's state)
+- `drop`: a random pin (the page picks the spot)
+- `place`: a pin placed by hand
+- `vote`: on a pin: 1 or -1, or 0 to take yours back
+- `area`: the limit area random pins land in; null clears it; anyone can set it
+- `label`: a couple of words naming the spot (shop, park, …); only whoever dropped the pin
+- `range`: the time limit everyone picks within; null clears it (the whole calendar again)
+- `avail`: painting: hours to add to and remove from your free time
+- `event`: the huddle's name, also the title of everyone's calendar event: anyone can change it
+- `tstat`: your answer: pick hours (the default), free anytime, or skip
+- `tvote`: vote an hour up (1) or down (-1), or take it back (0), like pins; as many hours as you like
+- `delete`: one of your own pins
+- `clearMine`: all your pins
+- `rename`: your name in this room
+<!-- /generated -->
+
+- Rooms expire after 14 idle days; a room left with nothing in it is dropped when its last visitor
+  goes; at `MAX_ROOMS` the least recently used empty-of-people room goes. Saving is throttled into
+  `DATA_FILE` (`rooms.json` locally), synchronous on SIGTERM/SIGINT; an unreadable file is moved aside.
 
 ## Page (`src/`)
 
-`src/index.html` is the markup plus the include list. Parts, in build order:
+`src/index.html` is the markup plus the include list. The parts, in build order (styles into one
+`<style>`, scripts into one `<script>` with one shared scope), each described by its first comment:
 
-**Head**: `head/theme-init.js` resolves the light/dark theme into `<html data-theme>` before first paint.
-
-**Styles** (`src/styles/`)
-
-| part | |
+<!-- generated: parts -->
+| part | what it is (its first comment) |
 |---|---|
-| `tokens.css` | the stylesheet's outline; colour, shadow, type and radius tokens, light and dark |
-| `base.css` | element defaults, focus ring, placeholders |
-| `components/` | `buttons`, `switch` (.seg), `fields` (.field, .inline-edit), `float`, `lists` (.listbox), `grip` (.gface, the penguin), `avatars` (.face) |
-| `regions/` | `frame` (#app, #map), `panel`, `room`, `pick` (most-voted box), `time` (calendar grid, key), `chat`, `map` (pins, controls), `floating` (pin card, toasts), `tutorial` |
-| `layouts/` | `desktop` (> 960px), `stacked` (≤ 960px: strip, folding, tabs), `phone` (≤ 600px), `tablet` (601–960px), `touch` (16px fields) |
-
-**Scripts** (`src/scripts/`, one shared scope, in this order)
-
-| part | what's in it |
-|---|---|
-| `core.js` | `K` (storage keys), `store`, `DHAKA`, `$` |
-| `theme.js` | the sun/moon switch |
-| `helpers.js` | `el`, ids (`rid`, `roomCode`), your `cid` and `myName` |
-| `state.js` | `pins`, `room`, `roomId`, `selectedId`, `score`, `nameOf` |
-| `url.js` | the `#room=…&map=…` hash: `parseHash`, `updateUrl` |
-| `map.js` | the Leaflet map; the panel strip's fold states and heights (`setFold`, `setPanelHeight`); the limit area (`setArea`, `inArea`); initial view; reset control |
-| `area.js` | drawing an area: box or freehand |
-| `place.js` | placing a pin by hand |
-| `share.js` | share link and copying |
-| `notices.js` | the one-line notice under the room box |
-| `markers.js` | pin icons (identicons, vote size and badge), `syncMarkers`, merge animation, `randomPoint` |
-| `list.js` | the pin list (`renderList`) |
-| `detail.js` | pin labels (edited in the list) and the selected pin's card |
-| `basemap.js` | OSM (OpenFreeMap Liberty, raster fallback) or Google's keyless embed, per browser |
-| `actions.js` | `post` and the pin actions |
-| `chat.js` | tabs (`setTab`), the chat (IRC style, `#n` links, mentions, chirp), toasts, chat height |
-| `multiplayer.js` | the room box and people list (`renderRoom`), your name, `applyState`, `connect`, new huddle |
-| `locate.js` | first visit: start near the user |
-| `tutorial.js` | the steps (`TUT`) and the walkthrough |
-| `time.js` | Space/Time (`setView`); the calendar model (`timeModel`: who counts, hour states, the pick) and `renderTime`; painting strokes; the pick box (`renderPick`); the huddle's name (`renderHname`); `.ics` |
-| `boot.js` | start-up: connect, restore the open view/tab, tutorial or locate |
+| `head/theme-init.js` | Theme: follows the system unless you've picked the other one with the sun/moon button (remembered) |
+| `styles/tokens.css` | Tokens: colours, shadows, type and shape, for the light theme and then the dark one |
+| `styles/base.css` | Base: box sizing, type, focus rings, placeholders, headings, and [hidden] |
+| `styles/components/buttons.css` | Buttons |
+| `styles/components/switch.css` | Segmented switch (.seg): a recessed track; the chosen option is a raised chip |
+| `styles/components/fields.css` | Text fields |
+| `styles/components/float.css` | Floating boxes (.float): over the map, calendar or panel (the pin card, toasts, the people dropdown, the tutorial) |
+| `styles/components/lists.css` | Lists (pins and times): a box (.listbox) with a heading bar (.listhead) and a scrolling area (.listscroll) under it, since that's where people vote |
+| `styles/components/grip.css` | The grip (.gface) on the panel's strip (stacked layouts) and the chat's title bar (desktop): a dashed bar (.beak); on the strip, between two small triangles (.eye): ▼ - - ▼, or ▲ - - ▲ when the panel's folded (the chat bar's only show as eyes) |
+| `styles/components/avatars.css` | Avatars: a person's identicon in a ring of their colour (the pins draw their own, see the map) |
+| `styles/regions/frame.css` | The frame: the app's box (the map or calendar, and the panel), whatever the layout |
+| `styles/regions/panel.css` | The panel: the controls (header), then the list box, which fills the rest and scrolls itself; on desktop the chat sits under them |
+| `styles/regions/room.css` | The room box: status, people, and the pick |
+| `styles/regions/pick.css` | The pick, one layout at every size: a vote badge (★ over the count), the time over the place (the same size), and the calendar button |
+| `styles/regions/time.css` | Time: a calendar of days × hours (the main area) everyone paints their free hours on |
+| `styles/regions/chat.css` | The chat: an IRC-style log, sized for a narrow panel |
+| `styles/regions/map.css` | The map: drawing and placing cursors, the Google base map, Leaflet's controls, and the pins |
+| `styles/regions/floating.css` | Floating boxes (.float): the selected pin's card, toasts |
+| `styles/regions/tutorial.css` | The tutorial: a card over the map or calendar; what it talks about gets an amber outline |
+| `styles/layouts/desktop.css` | Desktop: the panel at the side, as two panes on the canvas (controls and lists, then the chat; drag the chat's title bar to resize) |
+| `styles/layouts/stacked.css` | Stacked (phones and the in-between layout): the map or calendar on top, the panel under it, tabs at the bottom |
+| `styles/layouts/phone.css` | Phones: Space \| Time \| Chat tabs; Chat swaps the panel's contents for the chat |
+| `styles/layouts/tablet.css` | In between (tablets, narrow windows): the panel takes the bottom half, with the chat beside the lists rather than behind a tab, so the tabs are just Space \| Time |
+| `styles/layouts/touch.css` | Touch screens zoom into a field whose text is under 16px when it's focused |
+| `scripts/core.js` | core: browser settings (localStorage), the default region, and $ |
+| `scripts/theme.js` | theme: the light/dark button (the theme itself is set in <head>, before the page paints) |
+| `scripts/helpers.js` | helpers: building elements, random ids, and who you are (your id and name) |
+| `scripts/state.js` | state: the room as the server last sent it, and what's selected |
+| `scripts/url.js` | the link: #room=id&map=lat/lng/zoom |
+| `scripts/layout.js` | layout: the view, the tabs, and the stacked layouts' panel (folding, heights) |
+| `scripts/map.js` | map: Leaflet, the starting view, and the view kept in the link |
+| `scripts/area.js` | limit area: showing the room's, and drawing one |
+| `scripts/place.js` | place one pin by hand |
+| `scripts/share.js` | share: the room's link, copied to the clipboard |
+| `scripts/notices.js` | notices: the one-line status note in the room box (read out by screen readers) |
+| `scripts/markers.js` | markers: pins on the map (avatars, size by votes), merges, and random spots |
+| `scripts/list.js` | pin list: the room's pins, newest or top first, with votes; sort and "Clear mine" |
+| `scripts/detail.js` | selected-pin card: where is it, in Google Maps and OSM |
+| `scripts/basemap.js` | Base map: OSM (the default) or Google, one at a time, chosen per browser |
+| `scripts/actions.js` | actions: sent to the server, which broadcasts the new state |
+| `scripts/chat.js` | chat: messages, mentions, pin links, pop-ups and the mention sound |
+| `scripts/multiplayer.js` | room: connecting to it, its state as it arrives, the room box and the people list |
+| `scripts/locate.js` | first visit: start near the user |
+| `scripts/tutorial.js` | first-run tutorial: once per browser |
+| `scripts/time.js` | time: the calendar everyone marks their free hours on, and its list of hours |
+| `scripts/pick.js` | pick: the most-voted time and place, the huddle's name, and its calendar file |
+| `scripts/boot.js` | boot: join the room, restore the view, first-run tutorial |
+<!-- /generated -->
 
 ## Browser settings (`localStorage`, keys `randompin.*`)
 

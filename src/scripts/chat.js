@@ -1,42 +1,6 @@
-/* ---------- chat (rooms only) ---------- */
+/* ---------- chat: messages, mentions, pin links, pop-ups and the mention sound ---------- */
 
-let chat = [], tab = 'pins', chatSig = '';
-const tabMQ = matchMedia('(max-width: 960px)');   // panel at the bottom, with tabs (phones and the in-between layout); keep in sync with the CSS
-const phoneMQ = matchMedia('(max-width: 600px)');   // phones: the chat is a tab of its own
-// Phones: the panel's dragged height (see the fold strip); the desktop layout ignores it.
-setPanelHeight(store.get(K.panelH, null));
-tabMQ.addEventListener('change', () => setPanelHeight(store.get(K.panelH, null)));
-const chatShown = () => !tabMQ.matches || (!$('panel').classList.contains('folded') && (!phoneMQ.matches || tab === 'chat'));
-
-// Stacked layouts: Space (map + pins) | Time (the calendar) | on phones also Chat (map + chat). Picking a tab
-// leaves a folded panel folded.
-function setTab(t) {
-  if (t === 'chat' && !phoneMQ.matches) t = view === 'time' ? 'time' : 'pins';   // only phones have a Chat tab
-  tab = t;
-  store.set(K.tab, { view, tab });   // restored on reload, see the end
-  document.body.classList.toggle('tab-chat', t === 'chat');
-  $('tabpins').setAttribute('aria-selected', String(t === 'pins'));
-  $('tabtime').setAttribute('aria-selected', String(t === 'time'));
-  $('tabchat').setAttribute('aria-selected', String(t === 'chat'));
-  if (tabMQ.matches) setView(t === 'time' ? 'time' : t === 'chat' ? view : 'space');   // Chat keeps the map or calendar above it
-  if (chatShown()) { toasts.replaceChildren(); scrollChat(); }
-  placeMe();
-}
-// Your name box lives in the chat's title bar; on phones, where that bar is hidden, at the right of
-// the panel strip (in every tab).
-function placeMe() {
-  const phone = tabMQ.matches;
-  const to = phone ? $('foldme') : $('mebox');
-  if ($('me').parentElement !== to) to.append($('me'));
-  // the chat's bell: in its title bar, or on phones in the panel strip (where that bar's hidden)
-  const bell = phone ? $('foldmute') : document.querySelector('#chat > .chatbar .rt');
-  if ($('mute').parentElement !== bell) bell.prepend($('mute'));
-}
-tabMQ.addEventListener('change', placeMe);
-placeMe();
-$('tabpins').addEventListener('click', () => setTab('pins'));
-$('tabtime').addEventListener('click', () => setTab('time'));
-$('tabchat').addEventListener('click', () => setTab('chat'));
+let chat = [], chatSig = '';   // chatSig: the players behind the rendered names (re-render on a rename)
 
 // "#12" becomes a link to pin 12. Not after a word character or "&", so "a#1" and "&#1" stay text.
 const PIN_REF = /(^|[^\w&])#(\d{1,6})(?!\w)/g;
@@ -59,9 +23,10 @@ function richText(text) {
 // spaces, so match the room's actual names, longest first.
 const reEsc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const mentionRe = (names) => new RegExp(`@(${names.map(reEsc).join('|')})(?![\\p{L}\\p{N}])`, 'giu');
+const roomNames = () => [...new Set([myName, ...Object.values(room.players).map((p) => p.name)])].filter(Boolean).sort((a, b) => b.length - a.length);
 function mentions(str) {
-  const names = [...new Set([myName, ...Object.values(room.players).map((p) => p.name)])].filter(Boolean).sort((a, b) => b.length - a.length);
-  if (!str || !names.length) return [str];
+  const names = roomNames();
+  if (!str) return [str];
   const out = [];
   let last = 0;
   for (const m of str.matchAll(mentionRe(names))) {
@@ -72,7 +37,8 @@ function mentions(str) {
   out.push(str.slice(last));
   return out;
 }
-const mentionsMe = (m) => !m.sys && m.by !== cid && mentionRe([myName]).test(m.text);
+// Matched against everyone's names, so "@Sam Lee" isn't a mention of Sam.
+const mentionsMe = (m) => !m.sys && m.by !== cid && [...m.text.matchAll(mentionRe(roomNames()))].some((x) => x[1].toLowerCase() === myName.toLowerCase());
 
 // Click a person (members list, or a nick in the chat) to start a message to them.
 function mention(c) {
@@ -102,8 +68,11 @@ document.addEventListener('click', (e) => {
   if (!b) return;
   const p = pins.find((x) => x.n === +b.dataset.n);
   if (!p) return notice(`There is no pin #${b.dataset.n}.`);
-  select(p.id, true);   // the map is always on screen, so stay where the link was
-  if (e.target.closest('.pedit') && p.by === cid) { setTab('pins'); startLabel(p); }
+  // ✎: to the pin list, to edit the label. Otherwise just show the pin: on the map, which the Chat tab
+  // keeps above it, so the chat stays where it is.
+  if (e.target.closest('.pedit') && p.by === cid) { setTab('pins'); select(p.id, true); startLabel(p); return; }
+  if (view !== 'space') setView('space');
+  select(p.id, true);
 });
 
 function nick(c) {
@@ -157,14 +126,19 @@ function setChatHeight(h) {
     e.preventDefault();
     bar.setPointerCapture(e.pointerId);
     const y0 = e.clientY, h0 = $('chat').offsetHeight;
-    const move = (ev) => setChatHeight(h0 + y0 - ev.clientY);
+    let moved = false;   // a click (or the first of a double-click) leaves the split as it is
+    const move = (ev) => {
+      if (!moved && Math.abs(ev.clientY - y0) < 4) return;
+      moved = true;
+      setChatHeight(h0 + y0 - ev.clientY);
+    };
     const done = () => {
-      bar.removeEventListener('pointermove', move);
-      store.set(K.chatH, $('chat').offsetHeight);
+      for (const [t, f] of [['pointermove', move], ['pointerup', done], ['pointercancel', done]]) bar.removeEventListener(t, f);
+      if (moved) store.set(K.chatH, $('chat').offsetHeight);
     };
     bar.addEventListener('pointermove', move);
-    bar.addEventListener('pointerup', done, { once: true });
-    bar.addEventListener('pointercancel', done, { once: true });
+    bar.addEventListener('pointerup', done);
+    bar.addEventListener('pointercancel', done);
   });
   bar.addEventListener('dblclick', (e) => { if (!e.target.closest('button, .me')) { store.set(K.chatH, null); setChatHeight(null); } });
 }
@@ -173,7 +147,8 @@ tabMQ.addEventListener('change', () => setChatHeight(store.get(K.chatH, null)));
 
 // Mention sound: a short rising two-note chirp with a little warble on the second note (old IRC
 // client meets TARDIS), synthesised here, no audio file. Quiet, under 0.3 s, and only when someone
-// else mentions you. Browsers only allow sound after the page has been clicked or typed in once.
+// else mentions you. Browsers only allow sound after the page has been clicked or typed in once (a touch
+// counts when the finger lifts).
 let muted = store.get(K.mute, false), actx = null;
 function unlockAudio() {
   try {
@@ -181,7 +156,7 @@ function unlockAudio() {
     if (actx.state === 'suspended') actx.resume();
   } catch {}
 }
-for (const t of ['pointerdown', 'keydown']) document.addEventListener(t, unlockAudio, { capture: true, passive: true });
+for (const t of ['pointerdown', 'pointerup', 'keydown']) document.addEventListener(t, unlockAudio, { capture: true, passive: true });
 function chirp(force = false) {
   if ((muted && !force) || !actx || actx.state !== 'running') return;
   const t0 = actx.currentTime + 0.01, out = actx.createGain();
@@ -237,7 +212,8 @@ function presence(before, after) {
   }
 }
 
-// Phones, chat out of sight (Pins tab or folded panel): new messages float over the map. Tap one to open the chat.
+// While the chat is out of sight (stacked layouts: folded, or on phones another tab), new messages float
+// over the map or calendar. Tap one to open the chat.
 const toasts = el('div', { id: 'toasts', role: 'status' });
 cont.append(toasts);
 L.DomEvent.disableClickPropagation(toasts);
@@ -250,7 +226,11 @@ function mapNote(text) {   // a short, unclickable note in the same spot as chat
 }
 function toast(m) {
   const t = el('div', { className: 'toast float' }, ...msgLine(m));
-  t.addEventListener('click', (e) => { if (!e.target.closest('.pinref')) setTab('chat'); });
+  t.addEventListener('click', (e) => {
+    if (e.target.closest('.pinref')) return;
+    if (fold === 'folded') setFold('open');
+    setTab('chat');
+  });
   toasts.append(t);
   while (toasts.children.length > 3) toasts.firstChild.remove();
   setTimeout(() => t.remove(), 5000);
@@ -259,8 +239,14 @@ function toast(m) {
 $('chatform').addEventListener('submit', async (e) => {
   e.preventDefault();
   const text = $('chatin').value.trim();
-  if (!text || !roomId) return;
+  if (!text) return;
   $('chatin').value = '';
   if (await post({ type: 'chat', text }) && !$('chatin').value) $('chatin').value = text;   // failed: give it back
 });
 
+// The chat just came into view: the pop-ups it replaces go, and it shows the latest messages.
+function chatSeen() {
+  if (!chatShown()) return;
+  toasts.replaceChildren();
+  scrollChat();
+}

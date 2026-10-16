@@ -132,9 +132,16 @@ function googleView() {
       const old = [...gpane.children].filter((o) => o !== f);
       f.style.opacity = '1';
       gShown = f; gNext = null;
-      setTimeout(() => { old.forEach((o) => o.remove()); osmOn(false); }, 250);   // after the fade, so nothing flashes through
+      setTimeout(() => {   // after the fade, so nothing flashes through
+        old.forEach((o) => o.remove());
+        if (gShown === f && base === 'google') osmOn(false);   // (unless OSM came back meanwhile)
+      }, 250);
     }, 400));
-    setTimeout(() => { if (gNext === f) { f.remove(); gNext = null; } }, 10000);   // never loaded: keep what's there
+    setTimeout(() => {   // never loaded: keep what's there
+      if (gNext !== f) return;
+      f.remove(); gNext = null;
+      if (!gShown) googleCredit(false);
+    }, 10000);
     gNext?.remove();
     gNext = f;
     gpane.append(f);
@@ -159,6 +166,21 @@ const BaseSwitch = L.Control.extend({
     return box;
   },
 });
+// Reset: a map button (under the zoom buttons and map switch) back to the default view.
+const ResetControl = L.Control.extend({
+  options: { position: 'topleft' },
+  onAdd() {
+    const box = L.DomUtil.create('div', 'leaflet-bar resetc');
+    const a = L.DomUtil.create('a', '', box);
+    Object.assign(a, { href: '#', textContent: '⟲', title: 'Reset view' });
+    a.setAttribute('role', 'button');
+    a.setAttribute('aria-label', 'Reset view');
+    L.DomEvent.on(a, 'click', (e) => { L.DomEvent.preventDefault(e); map.fitBounds(DHAKA); });
+    L.DomEvent.disableClickPropagation(box);
+    return box;
+  },
+});
+
 const baseSwitch = new BaseSwitch().addTo(map);
 new ResetControl().addTo(map);
 function setBase(k) {
@@ -173,6 +195,4 @@ function setBase(k) {
   if (k === 'google') googleWatchdog();
 }
 setBase(base);
-
-$('sort').addEventListener('click', () => { sortMode = sortMode === 'top' ? 'new' : 'top'; store.set(K.sort, sortMode); renderList(); });
 

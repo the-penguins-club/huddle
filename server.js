@@ -4,11 +4,14 @@
 //   node server.js                         # http://127.0.0.1:8765, this machine only
 //   HOST=0.0.0.0 node server.js            # reachable on your LAN
 //   PORT=3000 DATA_FILE=/data/rooms.json node server.js
+//   TRUST_PROXY=1                          # behind a reverse proxy (Traefik): limits go by X-Forwarded-For
+//   LAN_INFO=0                             # don't list this machine's addresses in /api/info
 //
-// Rooms are created on first use and identified by an unguessable id in the share link.
-// State is authoritative here: clients POST actions, everyone receives the full
-// room state over Server-Sent Events after every change. Chat is the exception: a client gets
-// the history once per connection, then each new message on its own ("chat" events).
+// A room exists once someone opens it (its event stream) and is identified by an unguessable id in the
+// share link. State is authoritative here: clients POST actions, everyone receives the full room state
+// over Server-Sent Events after every change. Chat is the exception: a client gets the history once
+// per connection, then each new message on its own ("chat" events). Only a client connected to a room
+// can act in it.
 'use strict';
 const http = require('http');
 const fs = require('fs');
@@ -19,51 +22,121 @@ const crypto = require('crypto');
 const PORT = Number(process.env.PORT) || 8765;
 const HOST = process.env.HOST || '127.0.0.1';
 const DATA_FILE = process.env.DATA_FILE || path.join(__dirname, 'rooms.json');
-const MAX_ROOMS = 500, MAX_PINS = 500, MAX_CONNS = 100, MAX_CHAT = 200, MAX_TEXT = 500, MAX_AREA = 200, MAX_LABEL = 30, MERGE_M = 100, ROOM_TTL = 14 * 864e5;
+const TRUST_PROXY = process.env.TRUST_PROXY === '1';
+const LAN_INFO = process.env.LAN_INFO !== '0';
+const MAX_ROOMS = 500, MAX_PINS = 500, MAX_CHAT = 200, MAX_TEXT = 500, MAX_AREA = 200, MAX_LABEL = 30, MERGE_M = 100;
+const MAX_CONNS = 100;          // event streams per room
+const MAX_CONNS_PER_IP = 20;    // event streams from one address, across rooms
+const MAX_PLAYERS = 300;        // people a room remembers (names and colours)
+const MAX_VOTED_HOURS = 1000, MAX_SLOTS = 2000;   // per room; per person
+const MAX_BUFFER = 1 << 20;     // bytes queued for a client that stopped reading, before it's dropped
+const ROOM_TTL = 14 * 864e5;    // a room nobody has touched for this long is forgotten
 const ROOM_RE = /^[a-z0-9]{6,24}$/, CID_RE = /^[A-Za-z0-9-]{8,64}$/;
+// A client id; also used as an object key, so never one of Object.prototype's ("constructor", …).
+const validCid = (c) => typeof c === 'string' && CID_RE.test(c) && !(c in Object.prototype);
 
-/** @type {Map<string, {area:number[][]|null, areaBy:string|null, pins:any[], players:Record<string,{name:string,color:string}>, chat:{id:string,ts:number,by:string,text:string}[], nextN:number, touched:number, conns:Set<any>}>} */
+// A room. Everything but `conns` is saved (PERSISTED).
+//   event: {title} | null — the huddle's name;  range: the time limit (see validRange) | null
+//   avail: {cid: [slot…]} free hours;  tstat: {cid: 'any'|'out'};  tvotes: {slot: {cid: ±1}}
+//   area: [[lat, lng]…] | null, areaBy: cid;  pins: [{id, n, lat, lng, ts, by, votes: {cid: ±1}, label?, manual?}]
+//   players: {cid: {name, color}};  chat: [{id, ts, by, text}];  nextN: next pin number;  touched: ms
+//   conns: Set<{res, cid, ip}> — the open event streams
+const PERSISTED = ['event', 'range', 'avail', 'tstat', 'tvotes', 'area', 'areaBy', 'pins', 'players', 'chat', 'nextN', 'touched'];
+function blankRoom() {
+  return { event: null, range: null, avail: {}, tstat: {}, tvotes: {}, area: null, areaBy: null, pins: [], players: {}, chat: [], nextN: 1, touched: Date.now(), conns: new Set() };
+}
+// Nothing in it worth keeping: such a room isn't saved, and is dropped when its last visitor leaves.
+const isEmpty = (r) => !r.pins.length && !r.chat.length && !r.area && !r.event && !r.range
+  && !Object.keys(r.avail).length && !Object.keys(r.tstat).length && !Object.keys(r.tvotes).length;
+
+/** @type {Map<string, ReturnType<typeof blankRoom>>} */
 const rooms = new Map();
 
 /* ---------- persistence ---------- */
 
 try {
   const saved = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
-  for (const [id, r] of Object.entries(saved)) {
-    if (!ROOM_RE.test(id) || Date.now() - r.touched > ROOM_TTL) continue;
-    rooms.set(id, { event: r.event?.title ? { title: r.event.title } : null, range: r.range ?? null, avail: r.avail ?? {}, tstat: r.tstat ?? {}, tvotes: r.tvotes ?? {}, area: validArea(r.area) ?? rectToArea(r.rect), areaBy: r.areaBy ?? r.rectBy ?? null, pins: r.pins ?? [], players: r.players ?? {}, chat: Array.isArray(r.chat) ? r.chat : [], nextN: r.nextN ?? 1, touched: r.touched, conns: new Set() });
+  for (const [id, s] of Object.entries(saved)) {
+    if (!ROOM_RE.test(id) || !(Date.now() - s.touched < ROOM_TTL)) continue;
+    const r = blankRoom();
+    for (const k of PERSISTED) if (s[k] != null) r[k] = s[k];
+    r.area = validArea(r.area);
+    r.event = r.event?.title ? { title: String(r.event.title) } : null;
+    if (!Array.isArray(r.chat)) r.chat = [];
+    rooms.set(id, r);
   }
   console.log(`loaded ${rooms.size} room(s) from ${DATA_FILE}`);
 } catch (e) {
-  if (e.code !== 'ENOENT') console.warn('could not load', DATA_FILE, e.message);
+  if (e.code !== 'ENOENT') {   // unreadable: keep it aside rather than overwrite it with the next save
+    const aside = `${DATA_FILE}.bad-${Date.now()}`;
+    try { fs.renameSync(DATA_FILE, aside); } catch {}
+    console.warn(`could not load ${DATA_FILE} (${e.message}); moved it to ${aside}`);
+  }
 }
 
-let saveTimer = null;
+function diskState() {
+  const out = {};
+  for (const [id, r] of rooms) {
+    if (isEmpty(r)) continue;
+    out[id] = {};
+    for (const k of PERSISTED) out[id][k] = r[k];
+  }
+  return JSON.stringify(out);
+}
+// Saves are throttled (at most one every half second, however busy the rooms are) and never overlap:
+// a save asked for while one is writing runs after it.
+let saveTimer = null, saving = false, saveAgain = false;
 function save() {
+  if (!saveTimer) saveTimer = setTimeout(writeSave, 500);
+}
+function writeSave() {
+  saveTimer = null;
+  if (saving) { saveAgain = true; return; }
+  saving = true;
+  const tmp = DATA_FILE + '.tmp', done = (err) => {
+    if (err) console.warn('save failed:', err.message);
+    saving = false;
+    if (saveAgain) { saveAgain = false; save(); }
+  };
+  fs.writeFile(tmp, diskState(), (err) => (err ? done(err) : fs.rename(tmp, DATA_FILE, done)));
+}
+// On shutdown (docker stop sends SIGTERM): write what's pending, synchronously, then exit.
+function saveNow() {
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => {
-    const out = {};
-    for (const [id, r] of rooms) out[id] = { event: r.event, range: r.range, avail: r.avail, tstat: r.tstat, tvotes: r.tvotes, area: r.area, areaBy: r.areaBy, pins: r.pins, players: r.players, chat: r.chat, nextN: r.nextN, touched: r.touched };
-    const tmp = DATA_FILE + '.tmp';
-    fs.writeFile(tmp, JSON.stringify(out), (err) => {
-      if (err) return console.warn('save failed:', err.message);
-      fs.rename(tmp, DATA_FILE, (e2) => e2 && console.warn('save failed:', e2.message));
-    });
-  }, 500);
+  const tmp = DATA_FILE + '.tmp';
+  fs.writeFileSync(tmp, diskState());
+  fs.renameSync(tmp, DATA_FILE);
+}
+for (const sig of ['SIGTERM', 'SIGINT']) {
+  process.on(sig, () => {
+    try { saveNow(); } catch (e) { console.warn('save on exit failed:', e.message); }
+    process.exit(0);
+  });
 }
 
 /* ---------- room helpers ---------- */
 
-function getRoom(id) {
+// The room, created if `create` (opening a room's event stream; actions never create one). At the cap,
+// forget expired rooms, then the least recently used one nobody is in.
+function getRoom(id, create) {
   let r = rooms.get(id);
-  if (r) return r;
+  if (r || !create) return r ?? null;
   if (rooms.size >= MAX_ROOMS) {
-    for (const [k, v] of rooms) if (!v.conns.size && Date.now() - v.touched > ROOM_TTL) rooms.delete(k);
-    if (rooms.size >= MAX_ROOMS) return null;
+    sweep();
+    if (rooms.size >= MAX_ROOMS) {
+      let oldest = null;
+      for (const [k, v] of rooms) if (!v.conns.size && (!oldest || v.touched < rooms.get(oldest).touched)) oldest = k;
+      if (!oldest) return null;
+      rooms.delete(oldest);
+    }
   }
-  r = { event: null, range: null, avail: {}, tstat: {}, tvotes: {}, area: null, areaBy: null, pins: [], players: {}, chat: [], nextN: 1, touched: Date.now(), conns: new Set() };
+  r = blankRoom();
   rooms.set(id, r);
   return r;
+}
+// Forget rooms untouched for ROOM_TTL that nobody is in.
+function sweep() {
+  for (const [k, v] of rooms) if (!v.conns.size && Date.now() - v.touched > ROOM_TTL) rooms.delete(k);
 }
 
 const MAX_NAME = 16;   // a name fits the chat's title bar and the panel strip
@@ -77,19 +150,10 @@ function nextColor(r) {
   const used = new Set(Object.values(r.players).map((p) => p.color));
   return PALETTE.find((c) => !used.has(c)) ?? PALETTE[Object.keys(r.players).length % PALETTE.length];
 }
-// Recolour saved rooms in joining order, so rooms from before this palette get distinct colours too.
-for (const r of rooms.values()) Object.values(r.players).forEach((pl, i) => { pl.color = PALETTE[i % PALETTE.length]; });
 
 // Single line: control characters and runs of whitespace become one space. Cut by code point, not
 // UTF-16 unit, so an emoji at the limit isn't split in half.
 const cleanText = (s, max = MAX_TEXT) => [...String(s ?? '').replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim()].slice(0, max).join('').trim();
-
-// Returns true when the player is new, i.e. the room's player list changed.
-function ensurePlayer(r, cid, name) {
-  if (r.players[cid]) return false;
-  r.players[cid] = { name: cleanName(name) || 'Player', color: nextColor(r) };
-  return true;
-}
 
 function snapshot(r) {
   const online = [...new Set([...r.conns].map((c) => c.cid))];
@@ -97,32 +161,20 @@ function snapshot(r) {
 }
 
 const sse = (event, data) => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+// To everyone in the room. A client that has stopped reading (its queue past MAX_BUFFER) is dropped;
+// its browser reconnects if it's still there.
 function send(r, event, data) {
   const msg = sse(event, data);
-  for (const c of r.conns) c.res.write(msg);
+  for (const c of r.conns) {
+    if (c.res.writableLength > MAX_BUFFER) c.res.destroy();
+    else c.res.write(msg);
+  }
 }
 const broadcast = (r) => send(r, 'state', snapshot(r));
 
 const wrapLng = (x) => (x >= -180 && x <= 180 ? x : ((((x + 180) % 360) + 360) % 360) - 180);
 class Bad extends Error {}
 const bad = (m) => new Bad(m);
-
-function validRect(a) {
-  if (!Array.isArray(a) || a.length !== 4) return null;
-  const [s, w, n, e] = a.map(Number);
-  if (![s, w, n, e].every(Number.isFinite)) return null;
-  if (!(s < n) || !(w < e) || s < -85.06 || n > 85.06 || Math.abs(w) > 1080 || Math.abs(e) > 1080) return null;
-  return [s, w, n, e];
-}
-
-// Rooms saved before freeform areas have a rect [s, w, n, e]: it becomes a four-corner area.
-// A function declaration: the loader at the top of the file runs before this line.
-function rectToArea(rect) {
-  const v = validRect(rect);
-  if (!v) return null;
-  const [s, w, n, e] = v;
-  return [[s, w], [n, w], [n, e], [s, e]];
-}
 
 // A limit area: 3–MAX_AREA [lat, lng] vertices, drawn freehand. Longitudes are unwrapped (a shape
 // drawn across the antimeridian keeps counting past 180), as the map reports them.
@@ -136,7 +188,7 @@ function validArea(a) {
 
 // Is (lat, lng) inside? Even-odd ray casting in Web Mercator (x = lng, y = mercY(lat)), where the
 // map draws the edges as straight lines. Area longitudes are unwrapped, so try the ±360 copies.
-// index.html has the same function: a point the page picks must pass here.
+// src/scripts/map.js has the same function: a point the page picks must pass here.
 const mercY = (lat) => Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360));
 function inArea(area, lat, lng) {
   const y = mercY(lat);
@@ -153,15 +205,18 @@ function inArea(area, lat, lng) {
 
 /* ---------- time: when everyone is free ---------- */
 
-// The grid everyone paints on: `days` days from `start` (a date), hours `from`..`to` (to = 24 is
-// midnight), in time zone `tz`. Times are stored as absolute instants (UTC ms of each hour's start),
-// so each viewer can be shown them correctly whatever their own zone.
-const DATE_RE = /^\d{4}-\d{2}-\d{2}$/, MAX_SLOTS = 2000;
+// The grid everyone paints on: `days` days from `start` (a date within a year or so of now), hours
+// `from`..`to` (to = 24 is midnight), in time zone `tz`. Times are stored as absolute instants (UTC ms
+// of each hour's start), so each viewer can be shown them correctly whatever their own zone.
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 function validRange(a) {
   if (!a || typeof a !== 'object') return null;
   const tz = String(a.tz ?? ''), start = String(a.start ?? ''), days = Number(a.days), from = Number(a.from), to = Number(a.to);
   try { new Intl.DateTimeFormat('en', { timeZone: tz }); } catch { return null; }
-  if (!DATE_RE.test(start) || Number.isNaN(Date.parse(start))) return null;
+  const t = Date.parse(start);
+  // a real date (2026-02-31 parses, as 3 March: the round trip catches it), near enough for its hours to be valid slots
+  if (!DATE_RE.test(start) || Number.isNaN(t) || new Date(t).toISOString().slice(0, 10) !== start) return null;
+  if (Math.abs(t - Date.now()) > 365 * 864e5) return null;
   if (![days, from, to].every(Number.isInteger) || days < 1 || days > 31 || from < 0 || to > 24 || from >= to) return null;
   return { tz, start, days, from, to };
 }
@@ -177,8 +232,9 @@ function meters(aLat, aLng, bLat, bLng) {
 
 // One pin per spot: a pin landing within MERGE_M of an existing one (the nearest, if several) isn't
 // added; it counts as the dropper's upvote for that pin, unless they've already voted on it. Random
-// drops pick a spot clear of other pins (index.html), so they only merge when nothing clear was found.
-// Returns the merge, for the room to animate, or null when a pin was added.
+// drops pick a spot clear of other pins (src/scripts/markers.js), so they only merge when nothing clear
+// was found. Returns the merge, for the room to animate, or null when a pin was added. At MAX_PINS the
+// oldest pin goes.
 function addPin(r, cid, a, manual) {
   const lat = Number(a.lat), lng = Number(a.lng);
   if (!(Math.abs(lat) <= 85.06) || !Number.isFinite(lng) || Math.abs(lng) > 1080) throw bad('bad coordinates');
@@ -201,8 +257,8 @@ function addPin(r, cid, a, manual) {
   return null;
 }
 
+// An action from `cid`, who is connected to the room (so a player in it). Throws Bad when it's invalid.
 function apply(r, cid, a) {
-  const added = ensurePlayer(r, cid);
   if (a.type === 'chat') {
     const text = cleanText(a.text);
     if (!text) throw bad('empty message');
@@ -211,15 +267,14 @@ function apply(r, cid, a) {
     if (r.chat.length > MAX_CHAT) r.chat.splice(0, r.chat.length - MAX_CHAT);
     r.touched = Date.now();
     save();
-    if (added) broadcast(r);   // so everyone can put a name to the sender
     send(r, 'chat', { msg });
     return;
   }
   let merged = null;
   switch (a.type) {
-    case 'drop': merged = addPin(r, cid, a, false); break;
-    case 'place': merged = addPin(r, cid, a, true); break;
-    case 'vote': {
+    case 'drop': merged = addPin(r, cid, a, false); break;   // a random pin (the page picks the spot)
+    case 'place': merged = addPin(r, cid, a, true); break;   // a pin placed by hand
+    case 'vote': {   // on a pin: 1 or -1, or 0 to take yours back
       const p = r.pins.find((x) => x.id === a.pin);
       if (!p) throw bad('no such pin');
       if (a.v === 0) delete p.votes[cid];
@@ -227,7 +282,7 @@ function apply(r, cid, a) {
       else throw bad('bad vote');
       break;
     }
-    case 'area': {
+    case 'area': {   // the limit area random pins land in; null clears it; anyone can set it
       const next = a.area === null ? null : validArea(a.area);
       if (a.area !== null && !next) throw bad('bad area');
       r.area = next;
@@ -272,20 +327,20 @@ function apply(r, cid, a) {
     case 'tvote': {   // vote an hour up (1) or down (-1), or take it back (0), like pins; as many hours as you like
       if (!validSlot(a.slot) || ![-1, 0, 1].includes(a.v)) throw bad('bad vote');
       const k = String(a.slot), votes = r.tvotes[k] ?? {};
+      if (a.v && !r.tvotes[k] && Object.keys(r.tvotes).length >= MAX_VOTED_HOURS) throw bad('too many voted hours');
       if (a.v) votes[cid] = a.v; else delete votes[cid];
       if (Object.keys(votes).length) r.tvotes[k] = votes; else delete r.tvotes[k];
-      if (Object.keys(r.tvotes).length > 1000) throw bad('too many voted hours');
       break;
     }
-    case 'delete': {
+    case 'delete': {   // one of your own pins
       const p = r.pins.find((x) => x.id === a.pin);
       if (!p) break;
       if (p.by !== cid) throw bad('can only delete your own pins');
       r.pins = r.pins.filter((x) => x !== p);
       break;
     }
-    case 'clearMine': r.pins = r.pins.filter((p) => p.by !== cid); break;
-    case 'rename': {
+    case 'clearMine': r.pins = r.pins.filter((p) => p.by !== cid); break;   // all your pins
+    case 'rename': {   // your name in this room
       const n = cleanName(a.name);
       if (n) r.players[cid].name = n;
       break;
@@ -300,20 +355,35 @@ function apply(r, cid, a) {
 
 /* ---------- http ---------- */
 
-const buckets = new Map();   // cid -> {t, n}: 30 actions / 10 s
-function limited(cid) {
-  const now = Date.now(), b = buckets.get(cid);
-  if (!b || now - b.t > 10000) { buckets.set(cid, { t: now, n: 1 }); return false; }
+// The client's address: the connection's, or behind a trusted proxy the one it adds last to
+// X-Forwarded-For (anything before that is whatever the client claimed).
+function clientIp(req) {
+  if (TRUST_PROXY) {
+    const xff = String(req.headers['x-forwarded-for'] ?? '').split(',').pop().trim();
+    if (xff) return xff;
+  }
+  return req.socket.remoteAddress ?? '';
+}
+
+const buckets = new Map();   // ip -> {t, n}: 30 actions / 10 s from one address
+function limited(ip) {
+  const now = Date.now(), b = buckets.get(ip);
+  if (!b || now - b.t > 10000) { buckets.set(ip, { t: now, n: 1 }); return false; }
   return ++b.n > 30;
 }
-setInterval(() => { const now = Date.now(); for (const [k, b] of buckets) if (now - b.t > 10000) buckets.delete(k); }, 60000).unref();
+const connsFrom = new Map();   // ip -> open event streams
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, b] of buckets) if (now - b.t > 10000) buckets.delete(k);
+  sweep();
+}, 60000).unref();
 
 function json(res, code, body) {
   res.writeHead(code, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
   res.end(JSON.stringify(body));
 }
 
-function readBody(req, limit = 4096) {
+function readBody(req, limit) {
   return new Promise((resolve, reject) => {
     let size = 0; const chunks = [];
     req.on('data', (c) => { size += c.length; if (size > limit) { req.pause(); reject(bad('body too large')); } else chunks.push(c); });
@@ -323,51 +393,73 @@ function readBody(req, limit = 4096) {
 }
 
 function lanAddresses() {
-  if (HOST !== '0.0.0.0' && HOST !== '::') return [];
+  if (!LAN_INFO || (HOST !== '0.0.0.0' && HOST !== '::')) return [];
   return Object.values(os.networkInterfaces()).flat().filter((i) => i && i.family === 'IPv4' && !i.internal).map((i) => i.address);
 }
 
+// Why `cid` can't open room `id` right now, as [status, message], or null if it can.
+function refusal(id, cid, ip) {
+  if (!validCid(cid)) return [400, 'bad cid'];
+  if ((connsFrom.get(ip) ?? 0) >= MAX_CONNS_PER_IP) return [429, 'too many connections'];
+  const r = rooms.get(id);
+  if (r && (r.conns.size >= MAX_CONNS || (!r.players[cid] && Object.keys(r.players).length >= MAX_PLAYERS))) return [503, 'room is full'];
+  return null;
+}
+
+// Opening a room: the event stream. Being connected is being online in it. HEAD only asks whether it
+// would open (the page's "why can't I connect" check), without joining.
+function openStream(req, res, id, url) {
+  const cid = url.searchParams.get('cid') || '', ip = clientIp(req), no = refusal(id, cid, ip);
+  if (req.method === 'HEAD') { res.writeHead(no ? no[0] : 200, { 'Cache-Control': 'no-store' }); return res.end(); }
+  if (no) return json(res, no[0], { error: no[1] });
+  const r = getRoom(id, true);
+  if (!r) return json(res, 503, { error: 'too many rooms' });
+  r.players[cid] ??= { name: cleanName(url.searchParams.get('name')) || 'Player', color: nextColor(r) };
+  res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache, no-transform', Connection: 'keep-alive', 'X-Accel-Buffering': 'no' });
+  res.write('retry: 2000\n\n');
+  const conn = { res, cid, ip };
+  r.conns.add(conn);
+  connsFrom.set(ip, (connsFrom.get(ip) ?? 0) + 1);
+  r.touched = Date.now();
+  save();
+  broadcast(r);   // includes this connection: initial snapshot + presence for everyone else
+  res.write(sse('chat', { history: r.chat }));   // after the snapshot, so senders have names
+  req.on('close', () => {
+    r.conns.delete(conn);
+    const n = (connsFrom.get(ip) ?? 1) - 1;
+    if (n > 0) connsFrom.set(ip, n); else connsFrom.delete(ip);
+    if (!r.conns.size && isEmpty(r)) rooms.delete(id);   // opened and left without doing anything
+    else broadcast(r);
+  });
+}
+
+async function postAction(req, res, id) {
+  if (!/^application\/json/.test(req.headers['content-type'] || '')) return json(res, 415, { error: 'expected application/json' });
+  if (limited(clientIp(req))) return json(res, 429, { error: 'slow down' });
+  const body = await readBody(req, 32768);   // an area is up to MAX_AREA points; "clear mine" sends up to MAX_SLOTS slots
+  if (!body || typeof body !== 'object' || Array.isArray(body)) throw bad('expected an object');
+  if (!validCid(body.cid)) return json(res, 400, { error: 'bad cid' });
+  const r = getRoom(id, false);
+  if (!r || ![...r.conns].some((c) => c.cid === body.cid)) return json(res, 403, { error: 'not connected to this room' });
+  apply(r, body.cid, body);
+  res.writeHead(204);
+  res.end();
+}
+
 const server = http.createServer(async (req, res) => {
-  const url = new URL(req.url, 'http://x');
-  const parts = url.pathname.split('/').filter(Boolean);
   res.setHeader('X-Content-Type-Options', 'nosniff');
+  let url;
+  try { url = new URL(req.url, 'http://x'); } catch { return json(res, 400, { error: 'bad URL' }); }
   try {
+    const parts = url.pathname.split('/').filter(Boolean);
     if (req.method === 'GET' && (url.pathname === '/' || url.pathname === '/index.html')) {
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache' });
       return res.end(fs.readFileSync(path.join(__dirname, 'index.html')));
     }
     if (req.method === 'GET' && url.pathname === '/api/info') return json(res, 200, { lan: lanAddresses(), port: PORT });
-
     if (parts[0] === 'api' && parts[1] === 'rooms' && ROOM_RE.test(parts[2] || '')) {
-      const id = parts[2];
-      if (req.method === 'GET' && parts[3] === 'events') {
-        const cid = url.searchParams.get('cid') || '';
-        if (!CID_RE.test(cid)) return json(res, 400, { error: 'bad cid' });
-        const r = getRoom(id);
-        if (!r) return json(res, 503, { error: 'too many rooms' });
-        if (r.conns.size >= MAX_CONNS) return json(res, 503, { error: 'room is full' });
-        res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache, no-transform', Connection: 'keep-alive', 'X-Accel-Buffering': 'no' });
-        res.write('retry: 2000\n\n');
-        ensurePlayer(r, cid, url.searchParams.get('name'));
-        const conn = { res, cid };
-        r.conns.add(conn);
-        r.touched = Date.now();
-        save();
-        broadcast(r);   // includes this connection: initial snapshot + presence for everyone else
-        res.write(sse('chat', { history: r.chat }));   // after the snapshot, so senders have names
-        req.on('close', () => { r.conns.delete(conn); broadcast(r); });
-        return;
-      }
-      if (req.method === 'POST' && parts[3] === 'action') {
-        if (!/^application\/json/.test(req.headers['content-type'] || '')) return json(res, 415, { error: 'expected application/json' });
-        const body = await readBody(req, 32768);   // an area is up to MAX_AREA points; a paint stroke a few hundred slots
-        if (!CID_RE.test(body.cid || '')) return json(res, 400, { error: 'bad cid' });
-        if (limited(body.cid)) return json(res, 429, { error: 'slow down' });
-        const r = getRoom(id);
-        if (!r) return json(res, 503, { error: 'too many rooms' });
-        apply(r, body.cid, body);
-        res.writeHead(204); return res.end();
-      }
+      if ((req.method === 'GET' || req.method === 'HEAD') && parts[3] === 'events') return openStream(req, res, parts[2], url);
+      if (req.method === 'POST' && parts[3] === 'action') return await postAction(req, res, parts[2]);
     }
     json(res, 404, { error: 'not found' });
   } catch (e) {

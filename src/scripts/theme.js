@@ -1,3 +1,5 @@
+/* ---------- theme: the light/dark button (the theme itself is set in <head>, before the page paints) ---------- */
+
 // Light or dark: the button shows what it switches to. Picking the system's own theme goes back to
 // following the system, so only a deliberate "the other one" is remembered.
 const SUN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.5"/><path d="M12 1.5v2.5M12 20v2.5M1.5 12H4M20 12h2.5M4.6 4.6l1.8 1.8M17.6 17.6l1.8 1.8M4.6 19.4l1.8-1.8M17.6 6.4l1.8-1.8"/></svg>';

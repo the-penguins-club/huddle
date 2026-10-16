@@ -3,7 +3,17 @@
     "PostToolUse": [
       {
         "matcher": "Edit|Write|MultiEdit",
-        "hooks": [{ "type": "command", "command": "cd \"$CLAUDE_PROJECT_DIR\" && node build.js >/dev/null" }]
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" && node build.js >/dev/null && node scripts/harness-sync.js >/dev/null"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [{ "type": "command", "command": "sh \"$CLAUDE_PROJECT_DIR/.claude/hooks/review-docs.sh\"" }]
       }
     ]
   }

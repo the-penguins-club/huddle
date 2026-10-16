@@ -1,13 +1,15 @@
   /* ===== Huddle styles =====
      1. tokens (colours, shadows, type, shape; light and dark)   2. base
-     3. components: buttons, segmented switches, fields, cards, lists, avatars
+     3. components: buttons, segmented switches, fields, floating boxes, lists, the panel's grip, avatars
      4. regions: panel, room box and pick, time, chat, map, floating boxes, tutorial
      5. layouts: desktop (over 960px), stacked (960px and under), phones (600px and under), in between,
         touch screens
-     Components are classes (.btn, .seg, .field, .inline-edit, .float, .list); regions only place
+     Components are classes (.btn, .seg, .field, .inline-edit, .float, .listbox and .list, .gface, .face); regions only place
      and size them. To change how something looks everywhere, change the component. */
 
   /* ---------- 1. tokens ---------- */
+
+  /* Tokens: colours, shadows, type and shape, for the light theme and then the dark one. */
   :root {
     color-scheme: light;
     /* surfaces, back to front: canvas (behind the map and calendar) < panel (--bg) < cards and controls
@@ -23,12 +25,14 @@
     --sh-in: inset 0 1px 1px rgba(16, 24, 40, .05);
     --sh-float: 0 1px 2px rgba(16, 24, 40, .06), 0 6px 18px rgba(16, 24, 40, .1);
     --sh-edge: rgba(16, 24, 40, .14);   /* a scrolling box's edge, where there's more to see */
+    --sh-panel: 0 -2px 10px rgba(0, 0, 0, .1);   /* the stacked layouts' panel, over the map */
     /* colours: red for actions and selection; slate blue marks the chat, green what's decided */
     --acc: #d93025; --acc-grad: linear-gradient(180deg, #df3a2f, #cc2a1f); --acc-glow: rgba(217, 48, 37, .22);
     --acc2: #3d5a94; --ok: #15803d; --warn: #c2410c;
     --hl: #d97706; --hl-glow: rgba(217, 119, 6, .35);   /* the tutorial's highlight: must not look like the accent */
-    /* the calendar: one person free / two or more / everyone, the numbers on them, and your own outline */
-    --t-one: #d3dcea; --t-some: #fcc93a; --t-all: #4fd282; --t-text: #1d2433; --t-mine: rgba(0, 0, 0, .6);
+    /* the calendar: one person free / two or more / everyone, the numbers on the bright two, your own
+       outline, and the faint line between empty hours */
+    --t-one: #d3dcea; --t-some: #fcc93a; --t-all: #4fd282; --t-text: #1d2433; --t-mine: rgba(0, 0, 0, .6); --t-line: rgba(127, 127, 127, .14);
     /* type and shape */
     --fs-xs: 11px; --fs-s: 12px; --fs-m: 13px;
     --r-s: 6px; --r: 8px; --r-l: 10px;
@@ -44,6 +48,7 @@
     --sh-in: inset 0 1px 2px rgba(0, 0, 0, .35);
     --sh-float: 0 2px 4px rgba(0, 0, 0, .3), 0 8px 22px rgba(0, 0, 0, .45);
     --sh-edge: rgba(0, 0, 0, .5);
+    --sh-panel: 0 -2px 12px rgba(0, 0, 0, .45);
     --acc: #ff6b5e; --acc-grad: linear-gradient(180deg, #e2493e, #cc3a30); --acc-glow: rgba(217, 68, 58, .22);
     --acc2: #93abdb; --ok: #4ade80; --warn: #fb923c;
     --hl: #fbbf24; --hl-glow: rgba(251, 191, 36, .4);

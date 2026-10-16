@@ -15,6 +15,9 @@ Things that cost time before. One line of cause, one of what to do. Prune what s
 
 ## The browser pane (verifying)
 
+- While the pane is in the background, map animations stall mid-way: `map.getZoom()` reads the old
+  zoom after a `fitBounds`. Take a screenshot (it brings the pane forward) before judging the map's view.
+
 - After `resize_window` to a custom size, screenshots can come out scaled down or blank: reset to
   `desktop`, set the size again, wait a second.
 - A hash-only `navigate` doesn't reload the page: `location.reload()` after changing files.
@@ -23,6 +26,14 @@ Things that cost time before. One line of cause, one of what to do. Prune what s
 - `document.styleSheets` style rules have an (empty) `cssRules` too: when flattening, only descend into
   `CSSMediaRule`s.
 - `focus` events don't fire from script while the pane isn't focused; test with a real click.
+
+## Scripts
+
+- **The parts share one scope and run in order: a `const`/`let` used by load-time code must be defined
+  in an earlier part.** Handlers can use later ones. `layout.js` comes early because others call
+  `setFold`/`setPanelHeight` at load; `chatSeen`, `renderTime` and friends are only called from handlers.
+- **The server only takes actions from a page connected to the room.** Anything sent while
+  (re)connecting is refused; `post()` says so instead of sending.
 
 ## Data
 

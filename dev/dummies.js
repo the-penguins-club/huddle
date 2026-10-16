@@ -24,7 +24,8 @@ const MAX_PINS = 5;   // per dummy, so a long run doesn't bury the map
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const pick = (a) => a[Math.floor(Math.random() * a.length)];
 
-// Same inside-the-area test as the server: even-odd ray casting in Web Mercator.
+// The server's inside-the-area test (even-odd ray casting in Web Mercator), without its ±360 copies:
+// the areas these dummies play in don't cross the antimeridian.
 const mercY = (lat) => Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360));
 function inArea(area, lat, lng) {
   const y = mercY(lat);
@@ -102,7 +103,8 @@ async function member(i) {
   })();
 
   const act = (body) => fetch(`${base}/api/rooms/${room}/action`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ cid, ...body }) })
-    .then(async (r) => { if (!r.ok) console.log(`  ${name}: ${body.type} → ${(await r.json().catch(() => ({}))).error || r.status}`); });
+    .then(async (r) => { if (!r.ok) console.log(`  ${name}: ${body.type} → ${(await r.json().catch(() => ({}))).error || r.status}`); })
+    .catch((e) => console.log(`  ${name}: ${body.type} → ${e.message}`));   // server gone: keep going, the stream ends too
 
   // Answer in the Time tab once the room's state is in.
   for (let k = 0; k < 20 && !state; k++) await sleep(250);
@@ -118,41 +120,44 @@ async function member(i) {
   }
 
   const until = Date.now() + minutes * 60e3;   // everyone stays `minutes`, so they leave GAP apart
-  while (Date.now() < until) {
-    await sleep(Math.min(8000 + Math.random() * 12000, Math.max(0, until - Date.now())));
-    if (quiet || !state || Date.now() >= until) continue;
-    const others = state.pins.filter((p) => p.by !== cid), mine = state.pins.filter((p) => p.by === cid);
-    const r = Math.random();
-    if ((r < 0.2 || !state.pins.length) && mine.length < MAX_PINS) {
-      const s = spot(state.area);
-      if (s) { await act({ type: 'drop', ...s }); console.log(`  ${name} dropped a pin`); }
-    } else if (r < 0.65 && others.length) {
-      const p = pick(others);
-      await act({ type: 'vote', pin: p.id, v: Math.random() < 0.8 ? 1 : -1 });
-      console.log(`  ${name} voted on #${p.n}`);
-    } else if (r < 0.75) {   // time: vote on an hour with 2+ free, or now and then mark another block
-      const stat = state.tstat || {}, counts = new Map();
-      for (const [c, list] of Object.entries(state.avail || {})) if (!stat[c]) for (const x of list) counts.set(x, (counts.get(x) || 0) + 1);
-      const options = [...counts].filter(([, n]) => n >= 2).map(([x]) => x);
-      if (options.length && Math.random() < 0.7) {
-        const x = pick(options);
-        const v = Math.random() < 0.8 ? 1 : -1;   // mostly for, sometimes against, like pins
-        await act({ type: 'tvote', slot: x, v });
-        console.log(`  ${name} voted ${v > 0 ? 'for' : 'against'} an hour`);
-      } else if (!stat[cid]) {
-        await act({ type: 'avail', add: freeBlock(timeRange(state)) });
-        console.log(`  ${name} marked more free hours`);
+  try {
+    while (Date.now() < until) {
+      await sleep(Math.min(8000 + Math.random() * 12000, Math.max(0, until - Date.now())));
+      if (quiet || !state || Date.now() >= until) continue;
+      const others = state.pins.filter((p) => p.by !== cid), mine = state.pins.filter((p) => p.by === cid);
+      const r = Math.random();
+      if ((r < 0.2 || !state.pins.length) && mine.length < MAX_PINS) {
+        const s = spot(state.area);
+        if (s) { await act({ type: 'drop', ...s }); console.log(`  ${name} dropped a pin`); }
+      } else if (r < 0.65 && others.length) {
+        const p = pick(others);
+        await act({ type: 'vote', pin: p.id, v: Math.random() < 0.8 ? 1 : -1 });
+        console.log(`  ${name} voted on #${p.n}`);
+      } else if (r < 0.75) {   // time: vote on an hour with 2+ free, or now and then mark another block
+        const stat = state.tstat || {}, counts = new Map();
+        for (const [c, list] of Object.entries(state.avail || {})) if (!stat[c]) for (const x of list) counts.set(x, (counts.get(x) || 0) + 1);
+        const options = [...counts].filter(([, n]) => n >= 2).map(([x]) => x);
+        if (options.length && Math.random() < 0.7) {
+          const x = pick(options);
+          const v = Math.random() < 0.8 ? 1 : -1;   // mostly for, sometimes against, like pins
+          await act({ type: 'tvote', slot: x, v });
+          console.log(`  ${name} voted ${v > 0 ? 'for' : 'against'} an hour`);
+        } else if (!stat[cid]) {
+          await act({ type: 'avail', add: freeBlock(timeRange(state)) });
+          console.log(`  ${name} marked more free hours`);
+        }
+      } else if (r < 0.85) {
+        const p = pick(state.pins);
+        await act({ type: 'chat', text: pick(CHAT).replace('N', p.n) });
+        console.log(`  ${name} chatted about #${p.n}`);
+      } else {
+        const p = mine.find((q) => !q.label);
+        if (p) { await act({ type: 'label', pin: p.id, label: pick(LABELS) }); console.log(`  ${name} labelled #${p.n}`); }
       }
-    } else if (r < 0.85) {
-      const p = pick(state.pins);
-      await act({ type: 'chat', text: pick(CHAT).replace('N', p.n) });
-      console.log(`  ${name} chatted about #${p.n}`);
-    } else {
-      const p = mine.find((q) => !q.label);
-      if (p) { await act({ type: 'label', pin: p.id, label: pick(LABELS) }); console.log(`  ${name} labelled #${p.n}`); }
     }
+  } finally {   // an error mid-run still closes the stream, so the dummy goes offline
+    ac.abort();
   }
-  ac.abort();
   console.log(`- ${name} left`);
 }
 

@@ -17,6 +17,7 @@ const labelInput = el('input', { className: 'inline-edit strong', maxLength: MAX
 labelInput.setAttribute('aria-label', 'Pin label');
 labelInput.addEventListener('click', (e) => e.stopPropagation());   // don't select the pin
 labelInput.addEventListener('keydown', (e) => {
+  if (e.isComposing) return;   // Enter that confirms a word in an input method (Chinese, Japanese…)
   if (e.key === 'Enter') { e.preventDefault(); endLabel(true); }
   else if (e.key === 'Escape') { e.stopPropagation(); endLabel(false); }   // cancel the edit, not deselect the pin
 });
@@ -41,10 +42,15 @@ function setLabel(p, label) {
   post({ type: 'label', pin: p.id, label });
 }
 
+// Rebuilt only when what it shows changes, not on every room update: that would take the focus off its
+// buttons and cut a copy's ✓ short.
+let detailSig = '';
 function renderDetail() {
   const p = pins.find((x) => x.id === selectedId);
   detail.hidden = !p;
-  if (!p) return;
+  const sig = p ? [p.id, p.label, nameOf(p.by), p.manual].join('|') : '';
+  if (!p || sig === detailSig) { detailSig = sig; return; }
+  detailSig = sig;
   // Compact: a label, then open (↗) and copy buttons for its URL.
   const link = (label, url) => {
     const open = el('a', { className: 'btn sm', href: url, target: '_blank', rel: 'noopener', title: `Open in ${label}` }, '↗');

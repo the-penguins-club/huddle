@@ -22,14 +22,16 @@
 <style>
   /* ===== Huddle styles =====
      1. tokens (colours, shadows, type, shape; light and dark)   2. base
-     3. components: buttons, segmented switches, fields, cards, lists, avatars
+     3. components: buttons, segmented switches, fields, floating boxes, lists, the panel's grip, avatars
      4. regions: panel, room box and pick, time, chat, map, floating boxes, tutorial
      5. layouts: desktop (over 960px), stacked (960px and under), phones (600px and under), in between,
         touch screens
-     Components are classes (.btn, .seg, .field, .inline-edit, .float, .list); regions only place
+     Components are classes (.btn, .seg, .field, .inline-edit, .float, .listbox and .list, .gface, .face); regions only place
      and size them. To change how something looks everywhere, change the component. */
 
   /* ---------- 1. tokens ---------- */
+
+  /* Tokens: colours, shadows, type and shape, for the light theme and then the dark one. */
   :root {
     color-scheme: light;
     /* surfaces, back to front: canvas (behind the map and calendar) < panel (--bg) < cards and controls
@@ -45,12 +47,14 @@
     --sh-in: inset 0 1px 1px rgba(16, 24, 40, .05);
     --sh-float: 0 1px 2px rgba(16, 24, 40, .06), 0 6px 18px rgba(16, 24, 40, .1);
     --sh-edge: rgba(16, 24, 40, .14);   /* a scrolling box's edge, where there's more to see */
+    --sh-panel: 0 -2px 10px rgba(0, 0, 0, .1);   /* the stacked layouts' panel, over the map */
     /* colours: red for actions and selection; slate blue marks the chat, green what's decided */
     --acc: #d93025; --acc-grad: linear-gradient(180deg, #df3a2f, #cc2a1f); --acc-glow: rgba(217, 48, 37, .22);
     --acc2: #3d5a94; --ok: #15803d; --warn: #c2410c;
     --hl: #d97706; --hl-glow: rgba(217, 119, 6, .35);   /* the tutorial's highlight: must not look like the accent */
-    /* the calendar: one person free / two or more / everyone, the numbers on them, and your own outline */
-    --t-one: #d3dcea; --t-some: #fcc93a; --t-all: #4fd282; --t-text: #1d2433; --t-mine: rgba(0, 0, 0, .6);
+    /* the calendar: one person free / two or more / everyone, the numbers on the bright two, your own
+       outline, and the faint line between empty hours */
+    --t-one: #d3dcea; --t-some: #fcc93a; --t-all: #4fd282; --t-text: #1d2433; --t-mine: rgba(0, 0, 0, .6); --t-line: rgba(127, 127, 127, .14);
     /* type and shape */
     --fs-xs: 11px; --fs-s: 12px; --fs-m: 13px;
     --r-s: 6px; --r: 8px; --r-l: 10px;
@@ -66,6 +70,7 @@
     --sh-in: inset 0 1px 2px rgba(0, 0, 0, .35);
     --sh-float: 0 2px 4px rgba(0, 0, 0, .3), 0 8px 22px rgba(0, 0, 0, .45);
     --sh-edge: rgba(0, 0, 0, .5);
+    --sh-panel: 0 -2px 12px rgba(0, 0, 0, .45);
     --acc: #ff6b5e; --acc-grad: linear-gradient(180deg, #e2493e, #cc3a30); --acc-glow: rgba(217, 68, 58, .22);
     --acc2: #93abdb; --ok: #4ade80; --warn: #fb923c;
     --hl: #fbbf24; --hl-glow: rgba(251, 191, 36, .4);
@@ -73,6 +78,8 @@
   }
 
   /* ---------- 2. base ---------- */
+
+  /* Base: box sizing, type, focus rings, placeholders, headings, and [hidden]. */
   * { box-sizing: border-box; }
   html, body { height: 100%; margin: 0; }
   body { background: var(--canvas); color: var(--fg); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
@@ -151,7 +158,7 @@
   .list > li.sel { background: color-mix(in srgb, var(--acc) 6%, transparent); box-shadow: inset 3px 0 var(--acc); }
   .list > li.empty { display: block; padding: 24px 16px; background: none; color: var(--mut); text-align: center; cursor: default; }
   .num { flex: none; min-width: 28px; height: 28px; padding: 0 6px; display: grid; place-items: center; border-radius: 14px; background: var(--line); font-size: var(--fs-s); font-weight: 600; font-variant-numeric: tabular-nums; }
-  .num.one { background: var(--t-one); color: var(--t-text); }
+  .num.one { background: var(--t-one); }
   .num.some { background: var(--t-some); color: var(--t-text); }
   .num.all { background: var(--t-all); color: var(--t-text); }
   .meta { flex: 1; min-width: 0; }
@@ -189,12 +196,14 @@
 
   /* ---------- 4. regions ---------- */
 
+  /* The frame: the app's box (the map or calendar, and the panel), whatever the layout. */
   /* fixed + inset follows the *visible* viewport, so mobile browser chrome can't push the layout off-screen */
   #app { position: fixed; inset: 0; display: flex; }
   #map { flex: 1; min-width: 0; background: var(--card); }
   body.view-time #map { display: none; }
 
-  /* The panel: the controls (header) and the lists scroll together; the chat sits under them. */
+  /* The panel: the controls (header), then the list box, which fills the rest and scrolls itself; on
+     desktop the chat sits under them. */
   #panel { position: relative; z-index: 1; width: 360px; min-height: 0; display: flex; flex-direction: column; border-left: 1px solid var(--line-strong); background: var(--bg); }
   #fold { display: none; }   /* stacked layouts only */
   #scroller { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow-y: auto; background: var(--inset); }   /* the controls, then the list box, which fills the rest and scrolls itself */
@@ -209,7 +218,7 @@
   .droprow > .tools { flex: 1; min-width: 0; margin-top: 0; }   /* Time: its buttons share the first row with the link button */
   /* each view shows its own buttons (.sp: Space, .tm: Time) and its own list */
   .tm { display: none !important; }
-  body.view-time .tm { display: flex !important; }
+  body.view-time .tm:not([hidden]) { display: flex !important; }
   body.view-time .sp { display: none !important; }
   #list .lbl { font-weight: 600; }
   #list .mine { cursor: text; }
@@ -268,11 +277,12 @@
   #tgrid .dh { position: sticky; top: 0; z-index: 2; padding: 10px 0 4px; color: var(--mut); font-size: var(--fs-s); font-weight: 600; text-align: center; white-space: nowrap; }
   #tgrid .hh { position: sticky; left: 0; z-index: 1; padding: 0 6px 0 12px; color: var(--mut); font-size: var(--fs-xs); line-height: var(--rowh); text-align: right; font-variant-numeric: tabular-nums; }
   #tgrid > div:first-child { position: sticky; left: 0; top: 0; z-index: 3; }
-  #tgrid .c { position: relative; height: var(--rowh); background: var(--card); color: var(--t-text); font-size: 10px; font-weight: 600; line-height: var(--rowh); text-align: center; cursor: pointer; }
-  #tgrid .c.nofree { background-image: linear-gradient(rgba(127, 127, 127, .14) 1px, transparent 1px); }   /* faint hour lines */
+  #tgrid .c { position: relative; height: var(--rowh); background: var(--card); color: var(--fg); font-size: 10px; font-weight: 600; line-height: var(--rowh); text-align: center; cursor: pointer; }
+  #tgrid .c.nofree { background-image: linear-gradient(var(--t-line) 1px, transparent 1px); }   /* faint hour lines */
+  #tgrid .c.gap { background: none; cursor: default; }   /* an hour the clocks skip */
   #tgrid .c.one { background: var(--t-one); }
-  #tgrid .c.some { background: var(--t-some); }
-  #tgrid .c.all { background: var(--t-all); }
+  #tgrid .c.some { background: var(--t-some); color: var(--t-text); }
+  #tgrid .c.all { background: var(--t-all); color: var(--t-text); }
   #tgrid .c:is(.first, .runtop) { border-top-left-radius: var(--r-s); border-top-right-radius: var(--r-s); }
   #tgrid .c:is(.last, .runend) { border-bottom-left-radius: var(--r-s); border-bottom-right-radius: var(--r-s); }
   /* your own hours: a thin outline around each run of them, kept under the other marks (--mine is
@@ -283,6 +293,7 @@
   #tgrid .c.mine.mtop.mend { --mine: inset 0 0 0 1.5px var(--t-mine); }
   #tgrid .c.sel { z-index: 1; outline: 2px dashed var(--mut); outline-offset: 1px; }
   #tgrid .c.top { z-index: 1; outline: 2px solid var(--acc); outline-offset: 1px; box-shadow: var(--mine, 0 0 transparent), 0 0 0 4px color-mix(in srgb, var(--acc) 25%, transparent); }
+  #tgrid .c.top.sel { outline-style: dashed; }   /* both: the selection's dash, in the pick's red */
   #tgrid .c.lim { z-index: 1; outline: 2px dashed var(--acc); outline-offset: -1px; background-color: color-mix(in srgb, var(--acc) 12%, var(--card)); }
   #tgrid.inactive .c { cursor: default; }
   #tgrid.limiting .c { cursor: crosshair; }
@@ -335,7 +346,6 @@
   #peoplebtn { flex: none; gap: 4px; padding: 0 8px; color: var(--mut); font-variant-numeric: tabular-nums; }
   #peoplebtn svg { width: 15px; height: 15px; }
   #tabs { display: none; }   /* stacked layouts only */
-  body:not(.inroom) :is(#chat, #tabs) { display: none; }
 
   /* The map: drawing and placing cursors, the Google base map, Leaflet's controls, and the pins. */
   #map.drawing, #map.drawing .leaflet-interactive { cursor: crosshair !important; touch-action: none !important; }
@@ -403,7 +413,7 @@
   /* Desktop: the panel at the side, as two panes on the canvas (controls and lists, then the chat; drag
      the chat's title bar to resize). */
   @media (min-width: 961px) {
-    body.inroom #views { display: flex; }
+    #views { display: flex; }
     #panel { gap: 8px; padding: 8px; background: var(--canvas); box-shadow: -1px 0 0 var(--line); }
     #scroller, #chat { border: 1px solid var(--line); border-radius: var(--r-l); box-shadow: var(--sh-2); }
     #scroller { flex: 2.2 1 0; }   /* by default the lists get most of the column */
@@ -417,8 +427,8 @@
      the screen. The list entries are more compact. */
   @media (max-width: 960px) {
     #app { flex-direction: column; }
-    body.inroom #app { bottom: 44px; }
-    #panel { width: 100%; height: 45%; min-height: 200px; border-left: 0; border-top: 1px solid var(--line-strong); box-shadow: 0 -2px 10px rgba(0, 0, 0, .1); }
+    #app { bottom: 44px; }
+    #panel { width: 100%; height: 45%; min-height: 200px; border-left: 0; border-top: 1px solid var(--line-strong); box-shadow: var(--sh-panel); }
     #scroller > header { padding: 8px 12px 0; }
     .h1row { margin-bottom: 8px; }
     h1 { font-size: 15px; }
@@ -475,7 +485,8 @@
 
   /* Touch screens zoom into a field whose text is under 16px when it's focused. */
   @media (pointer: coarse) {
-    .field, .inline-edit { font-size: 16px; }   /* (your name, .me .inline-edit, stays small in its strip) */
+    .field, .inline-edit { font-size: 16px; }
+    .me .inline-edit:focus { font-size: 16px; }   /* your name: small in its strip, full size while it's edited */
     h1 .inline-edit { font-size: 16px; }
   }
 </style>
@@ -504,7 +515,7 @@
         <button id="place" class="btn" type="button" aria-pressed="false">Place a pin</button>
         <button id="draw" class="btn" type="button" aria-pressed="false">Limit area</button>
       </div>
-      <div id="room" hidden>
+      <div id="room">
         <div class="rowline"><span id="dot" class="dot"></span><span id="roomtxt" class="grow"></span><button id="onlinebtn" class="link" type="button" aria-expanded="false" aria-controls="members" hidden></button><button id="leave" class="link" type="button" title="Start a new, empty huddle">New huddle</button></div>
         <div id="members" class="float" hidden></div>
         <div id="pick" hidden></div>
@@ -543,6 +554,9 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
+/* ---------- core: browser settings (localStorage), the default region, and $ ---------- */
+
+// Browser settings: one key each, all prefixed randompin. (the project's old name; kept so settings survive).
 const K = { theme: 'randompin.theme', view: 'randompin.view', cid: 'randompin.cid', name: 'randompin.name', fold: 'randompin.fold', panelH: 'randompin.panelHeight', shape: 'randompin.shape', mute: 'randompin.mute', chatH: 'randompin.chatHeight', listH: 'randompin.listHeight', tut: 'randompin.tutorial', tab: 'randompin.tab', sort: 'randompin.sort', base: 'randompin.basemap' };
 const store = {
   get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } },
@@ -553,6 +567,8 @@ const store = {
 const DHAKA = [[23.700, 90.335], [23.828, 90.450]];
 
 const $ = (id) => document.getElementById(id);
+/* ---------- theme: the light/dark button (the theme itself is set in <head>, before the page paints) ---------- */
+
 // Light or dark: the button shows what it switches to. Picking the system's own theme goes back to
 // following the system, so only a deliberate "the other one" is remembered.
 const SUN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.5"/><path d="M12 1.5v2.5M12 20v2.5M1.5 12H4M20 12h2.5M4.6 4.6l1.8 1.8M17.6 17.6l1.8 1.8M4.6 19.4l1.8-1.8M17.6 6.4l1.8-1.8"/></svg>';
@@ -572,6 +588,8 @@ $('theme').addEventListener('click', () => {
 });
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', renderTheme);
 renderTheme();
+/* ---------- helpers: building elements, random ids, and who you are (your id and name) ---------- */
+
 function el(tag, props = {}, ...kids) {
   const e = Object.assign(document.createElement(tag), props);
   e.append(...kids);
@@ -589,14 +607,14 @@ let myName = store.get(K.name, null) || (() => {
   const v = `${pick(ADJ)} ${pick(ANI)}`; store.set(K.name, v); return v;
 })();
 
-/* ---------- state ---------- */
+/* ---------- state: the room as the server last sent it, and what's selected ---------- */
 
-// Pin: {id, n, lat, lng, ts, by (cid), votes: {cid: 1|-1}}
-const normalize = (p) => ({ ...p, by: p.by || cid, votes: p.votes || {} });
 // Everything happens in a room (there's no solo mode): the room id in the link is the only key to it.
-let pins = [];                         // the room's pins, from the server
-let roomId = null, es = null, status = 'connecting';
-let room = { players: {}, online: [] };
+// The shapes are server.js's (see blankRoom there). Pin: {id, n, lat, lng, ts, by (cid), votes: {cid: 1|-1}, label?, manual?}
+let pins = [];
+let roomId = null, es = null, status = 'connecting';   // status: connecting | live | reconnecting | offline
+const blankRoom = () => ({ players: {}, online: [], event: null, range: null, avail: {}, tstat: {}, tvotes: {} });
+let room = blankRoom();
 let selectedId = null, sortMode = store.get(K.sort, 'new') === 'top' ? 'top' : 'new';
 let serverInfo = null;
 const markers = new Map();
@@ -606,9 +624,12 @@ const myVote = (p) => p.votes[cid] || 0;
 const nameOf = (c) => (c === cid ? 'You' : room.players[c]?.name || 'Someone');
 const colorOf = (c) => room.players[c]?.color;
 
-/* ---------- share URL: #[room=id&]map=lat/lng/zoom[&area=lat,lng_lat,lng_…] (older links: &rect=s,w,n,e) ---------- */
+/* ---------- the link: #room=id&map=lat/lng/zoom ---------- */
 
+// The page keeps the room and the map's view in the address. Older links may also carry a limit area
+// (&area=lat,lng_lat,lng_…, or before that &rect=s,w,n,e): read only, to seed a new room's area.
 const num = (s) => (s !== '' && s != null && Number.isFinite(+s) ? +s : NaN);
+const rectToArea = ([s, w, n, e]) => [[s, w], [n, w], [n, e], [s, e]];
 
 function parseHash() {
   const q = new URLSearchParams(location.hash.replace(/^#/, ''));
@@ -620,7 +641,7 @@ function parseHash() {
   const r = (q.get('rect') || '').split(',').map(num);
   if (!area && r.length === 4 && r.every(Number.isFinite) && r[0] < r[2] && r[1] < r[3]) area = rectToArea(r);
   const rm = q.get('room');
-  return { view, area, room: /^[a-z0-9]{6,24}$/.test(rm || '') ? rm : null, present: !!(view || area) };
+  return { view, area, room: /^[a-z0-9]{6,24}$/.test(rm || '') ? rm : null };
 }
 
 const r5 = (x) => +x.toFixed(5);
@@ -630,26 +651,64 @@ function updateUrl() {
   parts.push(`map=${r5(c.lat)}/${r5(c.lng)}/${map.getZoom()}`);
   try { history.replaceState(null, '', '#' + parts.join('&')); } catch {}
 }
+/* ---------- layout: the view, the tabs, and the stacked layouts' panel (folding, heights) ---------- */
 
-/* ---------- map ---------- */
+// Breakpoints, the same as the CSS: at 960px and under the panel goes under the map or calendar, with
+// tabs at the bottom; at 600px and under (phones) the chat is a tab of its own.
+const tabMQ = matchMedia('(max-width: 960px)');
+const phoneMQ = matchMedia('(max-width: 600px)');
 
-const map = L.map('map', { zoomControl: true, minZoom: 2, maxZoom: 19, zoomSnap: 0.25 });
-// Plain OSM tiles: the fallback for the OSM option (see "Base map" below), added only when in use.
-const raster = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  maxZoom: 19,
-  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-});
+// The view is what the main area shows: the map (Space) or the calendar (Time). The stacked layouts'
+// tabs are Space | Time | on phones also Chat, which keeps the map or calendar above it. Outside the
+// Chat tab the tab follows the view, in every layout, so both can be restored on reload.
+let view = 'space', tab = 'pins';
+function setView(v) {
+  view = v === 'time' ? 'time' : 'space';
+  if (tab !== 'chat') tab = view === 'time' ? 'time' : 'pins';
+  store.set(K.tab, { view, tab });
+  document.body.classList.toggle('view-time', view === 'time');
+  document.body.classList.toggle('tab-chat', tab === 'chat');
+  for (const b of $('views').children) b.setAttribute('aria-selected', String(b.dataset.v === view));
+  for (const [id, t] of [['tabpins', 'pins'], ['tabtime', 'time'], ['tabchat', 'chat']]) $(id).setAttribute('aria-selected', String(tab === t));
+  $('time').hidden = view !== 'time';
+  (view === 'time' ? $('time') : cont).append(toasts);   // notes and chat pop-ups follow the visible view
+  if (view !== 'time') setLimitMode(false);
+  renderTime();
+  chatSeen();
+}
+// Picking a tab leaves a folded panel folded. Off phones there's no Chat tab: it stays on the view's.
+function setTab(t) {
+  if (t === 'chat' && !phoneMQ.matches) t = view === 'time' ? 'time' : 'pins';
+  tab = t;
+  setView(t === 'time' ? 'time' : t === 'chat' ? view : 'space');
+}
+for (const b of $('views').children) b.addEventListener('click', () => setView(b.dataset.v));
+$('tabpins').addEventListener('click', () => setTab('pins'));
+$('tabtime').addEventListener('click', () => setTab('time'));
+$('tabchat').addEventListener('click', () => setTab('chat'));
+phoneMQ.addEventListener('change', () => setTab(tab));   // widening a phone past its Chat tab
 
-// Layout changes (panel folding, rotation, mobile toolbars) resize the map without a window resize event.
-new ResizeObserver(() => map.invalidateSize()).observe(map.getContainer());
+// Is the chat's message list on screen? Beside the lists on desktop; in the stacked layouts, unless the
+// panel is folded (and on phones, only in the Chat tab).
+const chatShown = () => !tabMQ.matches || (fold !== 'folded' && (!phoneMQ.matches || tab === 'chat'));
+
+// Your name box lives in the chat's title bar; in the stacked layouts, where that bar is hidden, at the
+// right of the panel strip. The chat's bell likewise.
+function placeMe() {
+  const stacked = tabMQ.matches;
+  const to = stacked ? $('foldme') : $('mebox');
+  if ($('me').parentElement !== to) to.append($('me'));
+  const bell = stacked ? $('foldmute') : document.querySelector('#chat > .chatbar .rt');
+  if ($('mute').parentElement !== bell) bell.prepend($('mute'));
+}
+placeMe();
 
 // Stacked layouts only: the strip on top of the panel. Tapping it steps through three states: open;
 // just the list (the controls above it fold away, so the list gets the panel); folded to one row of
 // buttons (so the map or calendar gets the screen); and back to open. Dragging it resizes the panel.
-// The state and the height are the same in Space, Time and Chat, and remembered.
-// Just the list: a shorter panel, the same height in every tab (like the open one), remembered. Folding
-// to it from Space or Time sizes it to the list as it was (the controls above go); from the Chat tab, the
-// first time, to a little over half. Dragging the strip then resizes it.
+// The state and the heights are the same in Space, Time and Chat, and remembered.
+// Just the list: a shorter panel, the same height in every tab. Stepping to it from open sizes it to the
+// list box as it is then (the controls above go); dragging the strip then resizes it.
 const FOLDS = ['open', 'list', 'folded'];
 let fold = 'open', listPanelH = store.get(K.listH, null);
 const clampPanelH = (h) => Math.round(Math.max(120, Math.min(window.innerHeight - 44 - 140, h)));   // leave the tabs and some map
@@ -657,17 +716,16 @@ function setListPanelH(h) {
   listPanelH = h == null ? null : clampPanelH(h);
   $('panel').style.setProperty('--list-panel-h', listPanelH ? `${listPanelH}px` : '55%');
 }
-function setFold(f) {
+// `measure`: a tap from open to just-the-list, which sizes it to the list box. Restoring a saved state
+// (on load, after the tutorial) keeps the height the user left.
+function setFold(f, measure = false) {
   f = FOLDS.includes(f) ? f : 'open';
-  if (f === 'list' && fold === 'open') {
-    const box = [...document.querySelectorAll('.listbox')].find((b) => b.getClientRects().length);
-    if (box) {
-      const m = getComputedStyle(box);
-      setListPanelH($('panel').offsetHeight - $('scroller').offsetHeight + parseFloat(m.marginTop) + box.offsetHeight + parseFloat(m.marginBottom));
-      store.set(K.listH, listPanelH);
-    }
+  const box = measure && f === 'list' && fold === 'open' && [...document.querySelectorAll('.listbox')].find((b) => b.getClientRects().length);
+  if (box) {
+    const m = getComputedStyle(box);
+    setListPanelH($('panel').offsetHeight - $('scroller').offsetHeight + parseFloat(m.marginTop) + box.offsetHeight + parseFloat(m.marginBottom));
+    store.set(K.listH, listPanelH);
   }
-  setListPanelH(listPanelH);
   fold = f;
   $('panel').classList.toggle('listonly', fold === 'list');
   $('panel').classList.toggle('folded', fold === 'folded');
@@ -677,7 +735,7 @@ function setFold(f) {
   $('fold').setAttribute('aria-label', `${next} (drag to resize)`);
   store.set(K.fold, fold);
 }
-const stepFold = () => setFold(FOLDS[(FOLDS.indexOf(fold) + 1) % FOLDS.length]);
+const stepFold = () => { setFold(FOLDS[(FOLDS.indexOf(fold) + 1) % FOLDS.length], true); chatSeen(); };
 function setPanelHeight(h) {
   if (!tabMQ.matches || h == null) { $('panel').style.height = ''; return; }
   $('panel').style.height = `${Math.max(160, clampPanelH(h))}px`;
@@ -710,56 +768,26 @@ $('fold').addEventListener('click', (e) => {
   if (foldDragged) { foldDragged = false; return; }   // that was a drag, not a tap
   stepFold();
 });
+// Heights are clamped to the window: re-clamp when it changes (rotating a phone, say), and the
+// desktop layout ignores them.
+const fitPanel = () => { setPanelHeight(store.get(K.panelH, null)); setListPanelH(listPanelH); };
+addEventListener('resize', fitPanel);
+tabMQ.addEventListener('change', () => { fitPanel(); placeMe(); });
+fitPanel();
 { const f = store.get(K.fold, 'open'); setFold(f === true ? 'folded' : f); }   // (an older version stored true/false)
+/* ---------- map: Leaflet, the starting view, and the view kept in the link ---------- */
 
-// The limit area: a freehand shape, [[lat, lng], …] with unwrapped longitudes (see server.js).
-// The area itself is just its dashed outline; everything outside it is dimmed instead.
-const AREA_STYLE = { color: '#d93025', weight: 2, dashArray: '6 4', fill: false, interactive: false };
-const SHADE_STYLE = { stroke: false, fillColor: '#000', fillOpacity: 0.22, interactive: false };
-const MAX_AREA = 100;   // points kept after smoothing a stroke (the server takes up to 200)
-let areaLayer = null;
-function rectToArea([s, w, n, e]) { return [[s, w], [n, w], [n, e], [s, e]]; }   // older links and saved state
-const areaArr = () => (areaLayer ? areaLayer.getLatLngs()[0].map((ll) => [ll.lat, ll.lng]) : null);
-// Show the room's area (the server's; changes go through commitArea).
-let areaShade = null;   // a polygon covering the world with the area cut out of it
-function setArea(area) {
-  areaLayer?.remove(); areaShade?.remove();
-  areaLayer = area ? L.polygon(area, AREA_STYLE).addTo(map) : null;
-  areaShade = null;
-  if (area) {
-    // Area longitudes are unwrapped, so the outer ring spans a full turn either side of them.
-    const lngs = area.map(([, x]) => x), w = Math.min(...lngs) - 360, e = Math.max(...lngs) + 360;
-    areaShade = L.polygon([[[-85.06, w], [85.06, w], [85.06, e], [-85.06, e]], area], SHADE_STYLE).addTo(map);
-  }
-  // The Limit area button doubles as the signal that an area is set (unless it's mid-drawing).
-  $('draw').classList.toggle('set', !!area);
-  $('draw').title = area ? 'Pins only land inside the area. Click to clear it.' : 'Draw an area for pins to land in';
-  if (!map.getContainer().classList.contains('drawing')) $('draw').textContent = area ? 'Area limited ×' : 'Limit area';
-}
+// worldCopyJump: panning past the antimeridian jumps back to the main copy of the world, where the pins
+// and areas are, rather than showing an empty copy of it.
+const map = L.map('map', { zoomControl: true, minZoom: 2, maxZoom: 19, zoomSnap: 0.25, worldCopyJump: true });
+// Plain OSM tiles: the fallback for the OSM option (see "Base map" below), added only when in use.
+const raster = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19,
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+});
 
-// A user's area change, for the whole room.
-const commitArea = (area) => post({ type: 'area', area });
-
-const fitArea = () => map.fitBounds(areaLayer.getBounds().pad(0.15));
-
-// Same rule as the server: even-odd ray casting in Web Mercator (x = lng, y = mercY(lat)), where the
-// edges are drawn straight; area longitudes are unwrapped, so try the point's ±360 copies.
-const mercY = (lat) => Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360));
-function inArea(lat, lng) {
-  const area = areaArr();
-  if (!area) return true;
-  const y = mercY(lat), ys = area.map(([a]) => mercY(a));
-  return [-360, 0, 360].some((k) => {
-    const x = lng + k;
-    let inside = false;
-    for (let i = 0, j = area.length - 1; i < area.length; j = i++) {
-      const xi = area[i][1], xj = area[j][1];
-      if ((ys[i] > y) !== (ys[j] > y) && x < ((xj - xi) * (y - ys[i])) / (ys[j] - ys[i]) + xi) inside = !inside;
-    }
-    return inside;
-  });
-}
-
+// Layout changes (panel folding, rotation, mobile toolbars) resize the map without a window resize event.
+new ResizeObserver(() => map.invalidateSize()).observe(map.getContainer());
 
 // Initial view: the link's, then what this browser last showed, then Dhaka. The room (from the link,
 // or a new one) supplies the area; an old area-only link seeds a new room's area.
@@ -790,23 +818,60 @@ window.addEventListener('hashchange', () => {
   if (h.room && h.room !== roomId) connect(h.room);   // a link without a room just keeps this one
   if (h.view) map.setView(h.view.center, h.view.zoom);
 });
+/* ---------- limit area: showing the room's, and drawing one ---------- */
 
-// Reset: a map button (under the zoom buttons and map switch) back to the default view.
-const ResetControl = L.Control.extend({
-  options: { position: 'topleft' },
-  onAdd() {
-    const box = L.DomUtil.create('div', 'leaflet-bar resetc');
-    const a = L.DomUtil.create('a', '', box);
-    Object.assign(a, { href: '#', textContent: '⟲', title: 'Reset view' });
-    a.setAttribute('role', 'button');
-    a.setAttribute('aria-label', 'Reset view');
-    L.DomEvent.on(a, 'click', (e) => { L.DomEvent.preventDefault(e); map.fitBounds(DHAKA); });
-    L.DomEvent.disableClickPropagation(box);
-    return box;
-  },
-});
+// The limit area: a freehand shape, [[lat, lng], …] with unwrapped longitudes (see server.js).
+// The area itself is just its dashed outline; everything outside it is dimmed instead.
+const AREA_STYLE = { color: '#d93025', weight: 2, dashArray: '6 4', fill: false, interactive: false };
+const SHADE_STYLE = { stroke: false, fillColor: '#000', fillOpacity: 0.22, interactive: false };
+const MAX_AREA = 100;   // points kept after smoothing a stroke (the server takes up to 200)
+let areaLayer = null;
+const areaArr = () => (areaLayer ? areaLayer.getLatLngs()[0].map((ll) => [ll.lat, ll.lng]) : null);
+// Show the room's area (the server's; changes go through commitArea).
+let areaShade = null;   // a polygon covering the world with the area cut out of it
+function setArea(area) {
+  areaLayer?.remove(); areaShade?.remove();
+  areaLayer = area ? L.polygon(area, AREA_STYLE).addTo(map) : null;
+  areaShade = null;
+  if (area) {
+    // Area longitudes are unwrapped, so the outer ring spans a full turn either side of them.
+    const lngs = area.map(([, x]) => x), w = Math.min(...lngs) - 360, e = Math.max(...lngs) + 360;
+    areaShade = L.polygon([[[-85.06, w], [85.06, w], [85.06, e], [-85.06, e]], area], SHADE_STYLE).addTo(map);
+  }
+  // The Limit area button doubles as the signal that an area is set (unless it's mid-drawing).
+  $('draw').classList.toggle('set', !!area);
+  $('draw').title = area ? 'Pins only land inside the area. Click to clear it.' : 'Draw an area for pins to land in';
+  if (!map.getContainer().classList.contains('drawing')) $('draw').textContent = area ? 'Area limited ×' : 'Limit area';
+}
 
-/* ---------- draw an area ---------- */
+// A user's area change, for the whole room. A shape drawn on a copy of the world east or west of the
+// main one is moved onto it (whole turns), where pins land and inArea looks.
+function commitArea(area) {
+  const k = area && Math.round(area[0][1] / 360) * 360;
+  post({ type: 'area', area: area && area.map(([lat, lng]) => [lat, r6(lng - k)]) });
+}
+
+const fitArea = () => map.fitBounds(areaLayer.getBounds().pad(0.15));
+
+// Same rule as the server: even-odd ray casting in Web Mercator (x = lng, y = mercY(lat)), where the
+// edges are drawn straight; area longitudes are unwrapped, so try the point's ±360 copies.
+const mercY = (lat) => Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360));
+function inArea(lat, lng) {
+  const area = areaArr();
+  if (!area) return true;
+  const y = mercY(lat), ys = area.map(([a]) => mercY(a));
+  return [-360, 0, 360].some((k) => {
+    const x = lng + k;
+    let inside = false;
+    for (let i = 0, j = area.length - 1; i < area.length; j = i++) {
+      const xi = area[i][1], xj = area[j][1];
+      if ((ys[i] > y) !== (ys[j] > y) && x < ((xj - xi) * (y - ys[i])) / (ys[j] - ys[i]) + xi) inside = !inside;
+    }
+    return inside;
+  });
+}
+
+/* drawing */
 
 const cont = map.getContainer();
 let drawMode = false, drag = null;   // drag: {id, pts: container points, layer}
@@ -834,19 +899,24 @@ function setDrawMode(on) {
   $('draw').setAttribute('aria-pressed', String(on));
   $('draw').textContent = !on ? (areaLayer ? 'Area limited ×' : 'Limit area') : drawShape === 'box' ? 'Drag a box… (Esc)' : 'Draw a shape… (Esc)';
   for (const h of ['dragging', 'touchZoom', 'doubleClickZoom', 'boxZoom']) map[h][on ? 'disable' : 'enable']();
-  if (!on && drag) { drag.layer.remove(); drag = null; }
+  if (!on && drag) { drag.layer.remove(); drag = null; strokeZoom(true); }
 }
 
 // A box's four corners from two opposite container points (edges follow the map's grid).
 const boxPts = (a, b) => [a, L.point(b.x, a.y), b, L.point(a.x, b.y)];
 
+// The wheel and keys still zoom while drawing, between strokes; not during one, which they'd reshape.
+const strokeZoom = (on) => { for (const h of ['scrollWheelZoom', 'keyboard']) map[h][on ? 'enable' : 'disable'](); };
+
 const clampLat = (ll) => L.latLng(Math.max(-85, Math.min(85, ll.lat)), ll.lng);
 
 cont.addEventListener('pointerdown', (e) => {
   if (!drawMode || e.button !== 0 || e.target.closest('.leaflet-control, #detail, #toasts, #tut, #shapesw')) return;
+  if (drag) return;   // a second finger: the first one is drawing
   e.preventDefault(); e.stopPropagation();
   cont.setPointerCapture(e.pointerId);
   const pt = map.mouseEventToContainerPoint(e);
+  strokeZoom(false);
   drag = { id: e.pointerId, pts: [pt], layer: L.polygon([clampLat(map.containerPointToLatLng(pt))], { ...AREA_STYLE, dashArray: null }).addTo(map) };
 }, true);
 
@@ -870,6 +940,7 @@ function endDrag(e, commit) {
   if (!drag || e.pointerId !== drag.id) return;
   const { pts } = drag;
   drag.layer.remove(); drag = null;
+  strokeZoom(true);
   const size = L.bounds(pts).getSize();
   if (!commit || pts.length < 2 || size.x < 8 || size.y < 8) return;   // ignore stray clicks
   let shape;
@@ -892,13 +963,6 @@ $('draw').addEventListener('click', () => {
   else if (areaLayer) commitArea(null);
   else setDrawMode(true);
 });
-document.addEventListener('keydown', (e) => {
-  if (e.key !== 'Escape') return;
-  if (drawMode) setDrawMode(false);
-  else if (placeMode) setPlaceMode(false);
-  else if (selectedId) { selectedId = null; renderList(); }
-});
-
 /* ---------- place one pin by hand ---------- */
 
 let placeMode = false;
@@ -920,7 +984,7 @@ map.on('click', (e) => {
 });
 $('place').addEventListener('click', () => setPlaceMode(!placeMode));
 
-/* ---------- share ---------- */
+/* ---------- share: the room's link, copied to the clipboard ---------- */
 
 function shareUrl() {
   updateUrl();
@@ -954,7 +1018,7 @@ $('share').addEventListener('click', async () => {
   shareTimer = setTimeout(() => ($('share').innerHTML = LINK_ICON), 1500);
 });
 
-/* ---------- transient notices ---------- */
+/* ---------- notices: the one-line status note in the room box (read out by screen readers) ---------- */
 
 let noticeTimer = null;
 function notice(msg, ms = 4500) {
@@ -963,7 +1027,7 @@ function notice(msg, ms = 4500) {
   noticeTimer = setTimeout(() => ($('live').textContent = ''), ms);
 }
 
-/* ---------- markers ---------- */
+/* ---------- markers: pins on the map (avatars, size by votes), merges, and random spots ---------- */
 
 // Player avatars: minidenticons (<1 KB, MIT) turns a player id into a small symmetric pixel avatar,
 // the same on every screen. Pins show their dropper's avatar; if the library can't load they keep
@@ -1031,7 +1095,7 @@ function syncMarkers(animate = []) {
       m = L.marker([p.lat, p.lng], { title: `#${p.n}` }).addTo(map);
       m.on('click', () => select(p.id, false));
       markers.set(p.id, m);
-    } else if (m.getLatLng().lat !== p.lat || m.getLatLng().lng !== p.lng) m.setLatLng([p.lat, p.lng]);   // a moved pin
+    }
     const sig = `${p.n}|${i === 0}|${colorOf(p.by)}|${!!identicon}`;
     if (m._sig !== sig) { m.setIcon(pinIcon(p, i === 0)); m._sig = sig; }
     if (m._label !== (p.label || '')) {
@@ -1086,7 +1150,8 @@ function showMerge(m) {
 }
 
 // Uniform in screen space (Web Mercator), so pins don't bunch toward the poles in tall areas:
-// random points in the area's bounding box (or the visible map) until one is inside the shape.
+// random points in the area's bounding box (or the visible map, minus anything past the poles' cut-off)
+// until one is inside the shape.
 // Bounds are unwrapped, so areas crossing the antimeridian work; wrapLatLng folds the result back.
 // Prefers spots at least MERGE_M from every pin, so a drop is a new place rather than a merge; when
 // the area has none left, the first spot inside it (which then merges into its nearest pin).
@@ -1097,7 +1162,8 @@ function randomPoint() {
   let fallback = null;
   for (let i = 0; i < tries; i++) {
     const ll = map.wrapLatLng(map.unproject(L.point(a.x + Math.random() * (c.x - a.x), a.y + Math.random() * (c.y - a.y)), Z));
-    const p = { lat: Math.max(-85, Math.min(85, ll.lat)), lng: ll.lng };
+    if (Math.abs(ll.lat) > 85) continue;
+    const p = { lat: ll.lat, lng: ll.lng };
     if (!inArea(p.lat, p.lng)) continue;   // the server runs the same test
     if (!nearestPin(p.lat, p.lng)) return p;
     fallback ??= p;
@@ -1105,16 +1171,14 @@ function randomPoint() {
   return fallback;   // null: a sliver too thin to hit
 }
 
-/* ---------- history list ---------- */
-
-const showNewest = () => $('list').firstElementChild?.scrollIntoView({ block: 'nearest' });
+/* ---------- pin list: the room's pins, newest or top first, with votes; sort and "Clear mine" ---------- */
 
 function renderList() {
   const list = $('list');
   const mine = pins.filter((p) => p.by === cid).length;
   $('count').textContent = pins.length ? `Pins · ${pins.length}` : 'Pins';
   $('clear').hidden = !mine;
-  $('clear').textContent = 'Clear mine';
+  $('clear').textContent = clearTimer ? `Click again to delete ${mine}` : 'Clear mine';   // (re-renders keep the confirm)
   $('sort').textContent = `Sort: ${sortMode === 'top' ? 'top' : 'newest'}`;
   updatePlaceBtn();
   renderDetail();
@@ -1166,6 +1230,22 @@ function renderList() {
   }
 }
 
+$('sort').addEventListener('click', () => { sortMode = sortMode === 'top' ? 'new' : 'top'; store.set(K.sort, sortMode); renderList(); });
+
+// Clear mine: a two-step confirm inline, since native confirm() is silently suppressed in some embedded
+// browsers (and after "prevent additional dialogs").
+let clearTimer = null;
+$('clear').addEventListener('click', () => {
+  if (!clearTimer) {
+    clearTimer = setTimeout(() => { clearTimer = null; renderList(); }, 3000);
+    renderList();
+    return;
+  }
+  clearTimeout(clearTimer); clearTimer = null;
+  selectedId = null;
+  post({ type: 'clearMine' });
+  renderList();
+});
 /* ---------- selected-pin card: where is it, in Google Maps and OSM ---------- */
 
 const detail = el('div', { id: 'detail', className: 'float', hidden: true });
@@ -1185,6 +1265,7 @@ const labelInput = el('input', { className: 'inline-edit strong', maxLength: MAX
 labelInput.setAttribute('aria-label', 'Pin label');
 labelInput.addEventListener('click', (e) => e.stopPropagation());   // don't select the pin
 labelInput.addEventListener('keydown', (e) => {
+  if (e.isComposing) return;   // Enter that confirms a word in an input method (Chinese, Japanese…)
   if (e.key === 'Enter') { e.preventDefault(); endLabel(true); }
   else if (e.key === 'Escape') { e.stopPropagation(); endLabel(false); }   // cancel the edit, not deselect the pin
 });
@@ -1209,10 +1290,15 @@ function setLabel(p, label) {
   post({ type: 'label', pin: p.id, label });
 }
 
+// Rebuilt only when what it shows changes, not on every room update: that would take the focus off its
+// buttons and cut a copy's ✓ short.
+let detailSig = '';
 function renderDetail() {
   const p = pins.find((x) => x.id === selectedId);
   detail.hidden = !p;
-  if (!p) return;
+  const sig = p ? [p.id, p.label, nameOf(p.by), p.manual].join('|') : '';
+  if (!p || sig === detailSig) { detailSig = sig; return; }
+  detailSig = sig;
   // Compact: a label, then open (↗) and copy buttons for its URL.
   const link = (label, url) => {
     const open = el('a', { className: 'btn sm', href: url, target: '_blank', rel: 'noopener', title: `Open in ${label}` }, '↗');
@@ -1385,9 +1471,16 @@ function googleView() {
       const old = [...gpane.children].filter((o) => o !== f);
       f.style.opacity = '1';
       gShown = f; gNext = null;
-      setTimeout(() => { old.forEach((o) => o.remove()); osmOn(false); }, 250);   // after the fade, so nothing flashes through
+      setTimeout(() => {   // after the fade, so nothing flashes through
+        old.forEach((o) => o.remove());
+        if (gShown === f && base === 'google') osmOn(false);   // (unless OSM came back meanwhile)
+      }, 250);
     }, 400));
-    setTimeout(() => { if (gNext === f) { f.remove(); gNext = null; } }, 10000);   // never loaded: keep what's there
+    setTimeout(() => {   // never loaded: keep what's there
+      if (gNext !== f) return;
+      f.remove(); gNext = null;
+      if (!gShown) googleCredit(false);
+    }, 10000);
     gNext?.remove();
     gNext = f;
     gpane.append(f);
@@ -1412,6 +1505,21 @@ const BaseSwitch = L.Control.extend({
     return box;
   },
 });
+// Reset: a map button (under the zoom buttons and map switch) back to the default view.
+const ResetControl = L.Control.extend({
+  options: { position: 'topleft' },
+  onAdd() {
+    const box = L.DomUtil.create('div', 'leaflet-bar resetc');
+    const a = L.DomUtil.create('a', '', box);
+    Object.assign(a, { href: '#', textContent: '⟲', title: 'Reset view' });
+    a.setAttribute('role', 'button');
+    a.setAttribute('aria-label', 'Reset view');
+    L.DomEvent.on(a, 'click', (e) => { L.DomEvent.preventDefault(e); map.fitBounds(DHAKA); });
+    L.DomEvent.disableClickPropagation(box);
+    return box;
+  },
+});
+
 const baseSwitch = new BaseSwitch().addTo(map);
 new ResetControl().addTo(map);
 function setBase(k) {
@@ -1427,14 +1535,13 @@ function setBase(k) {
 }
 setBase(base);
 
-$('sort').addEventListener('click', () => { sortMode = sortMode === 'top' ? 'new' : 'top'; store.set(K.sort, sortMode); renderList(); });
-
 /* ---------- actions: sent to the server, which broadcasts the new state ---------- */
 
-// Resolves to the error message, or null when the server took the action.
+// Resolves to the error message, or null when the server took the action. Only a page connected to the
+// room can act in it, so while it's (re)connecting nothing is sent.
 async function post(action) {
-  let err = null;
-  try {
+  let err = status === 'live' ? null : 'Not connected right now: that was not sent.';
+  if (!err) try {
     const r = await fetch(`/api/rooms/${roomId}/action`, {
       method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ cid, ...action }),
     });
@@ -1466,64 +1573,20 @@ function removePin(id) {
   post({ type: 'delete', pin: id });
 }
 
-// Two-step confirm inline: native confirm() is silently suppressed in some
-// embedded browsers / after "prevent additional dialogs", which made this a no-op.
-let clearTimer = null;
-function resetClearBtn() { clearTimeout(clearTimer); clearTimer = null; renderList(); }
-$('clear').addEventListener('click', () => {
-  const mine = pins.filter((p) => p.by === cid).length;
-  if (!clearTimer) {
-    $('clear').textContent = `Click again to delete ${mine}`;
-    clearTimer = setTimeout(resetClearBtn, 3000);
-    return;
-  }
-  clearTimeout(clearTimer); clearTimer = null;
-  selectedId = null;
-  post({ type: 'clearMine' });
-  renderList();
-});
-
 $('drop').addEventListener('click', dropPin);
 
-/* ---------- chat (rooms only) ---------- */
+// Esc steps back out of the map's modes: drawing an area, placing a pin, then the selected pin. (The
+// tutorial, the people list and the calendar's Limit time catch it first.)
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  if (drawMode) setDrawMode(false);
+  else if (placeMode) setPlaceMode(false);
+  else if (selectedId) { selectedId = null; renderList(); }
+});
 
-let chat = [], tab = 'pins', chatSig = '';
-const tabMQ = matchMedia('(max-width: 960px)');   // panel at the bottom, with tabs (phones and the in-between layout); keep in sync with the CSS
-const phoneMQ = matchMedia('(max-width: 600px)');   // phones: the chat is a tab of its own
-// Phones: the panel's dragged height (see the fold strip); the desktop layout ignores it.
-setPanelHeight(store.get(K.panelH, null));
-tabMQ.addEventListener('change', () => setPanelHeight(store.get(K.panelH, null)));
-const chatShown = () => !tabMQ.matches || (!$('panel').classList.contains('folded') && (!phoneMQ.matches || tab === 'chat'));
+/* ---------- chat: messages, mentions, pin links, pop-ups and the mention sound ---------- */
 
-// Stacked layouts: Space (map + pins) | Time (the calendar) | on phones also Chat (map + chat). Picking a tab
-// leaves a folded panel folded.
-function setTab(t) {
-  if (t === 'chat' && !phoneMQ.matches) t = view === 'time' ? 'time' : 'pins';   // only phones have a Chat tab
-  tab = t;
-  store.set(K.tab, { view, tab });   // restored on reload, see the end
-  document.body.classList.toggle('tab-chat', t === 'chat');
-  $('tabpins').setAttribute('aria-selected', String(t === 'pins'));
-  $('tabtime').setAttribute('aria-selected', String(t === 'time'));
-  $('tabchat').setAttribute('aria-selected', String(t === 'chat'));
-  if (tabMQ.matches) setView(t === 'time' ? 'time' : t === 'chat' ? view : 'space');   // Chat keeps the map or calendar above it
-  if (chatShown()) { toasts.replaceChildren(); scrollChat(); }
-  placeMe();
-}
-// Your name box lives in the chat's title bar; on phones, where that bar is hidden, at the right of
-// the panel strip (in every tab).
-function placeMe() {
-  const phone = tabMQ.matches;
-  const to = phone ? $('foldme') : $('mebox');
-  if ($('me').parentElement !== to) to.append($('me'));
-  // the chat's bell: in its title bar, or on phones in the panel strip (where that bar's hidden)
-  const bell = phone ? $('foldmute') : document.querySelector('#chat > .chatbar .rt');
-  if ($('mute').parentElement !== bell) bell.prepend($('mute'));
-}
-tabMQ.addEventListener('change', placeMe);
-placeMe();
-$('tabpins').addEventListener('click', () => setTab('pins'));
-$('tabtime').addEventListener('click', () => setTab('time'));
-$('tabchat').addEventListener('click', () => setTab('chat'));
+let chat = [], chatSig = '';   // chatSig: the players behind the rendered names (re-render on a rename)
 
 // "#12" becomes a link to pin 12. Not after a word character or "&", so "a#1" and "&#1" stay text.
 const PIN_REF = /(^|[^\w&])#(\d{1,6})(?!\w)/g;
@@ -1546,9 +1609,10 @@ function richText(text) {
 // spaces, so match the room's actual names, longest first.
 const reEsc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const mentionRe = (names) => new RegExp(`@(${names.map(reEsc).join('|')})(?![\\p{L}\\p{N}])`, 'giu');
+const roomNames = () => [...new Set([myName, ...Object.values(room.players).map((p) => p.name)])].filter(Boolean).sort((a, b) => b.length - a.length);
 function mentions(str) {
-  const names = [...new Set([myName, ...Object.values(room.players).map((p) => p.name)])].filter(Boolean).sort((a, b) => b.length - a.length);
-  if (!str || !names.length) return [str];
+  const names = roomNames();
+  if (!str) return [str];
   const out = [];
   let last = 0;
   for (const m of str.matchAll(mentionRe(names))) {
@@ -1559,7 +1623,8 @@ function mentions(str) {
   out.push(str.slice(last));
   return out;
 }
-const mentionsMe = (m) => !m.sys && m.by !== cid && mentionRe([myName]).test(m.text);
+// Matched against everyone's names, so "@Sam Lee" isn't a mention of Sam.
+const mentionsMe = (m) => !m.sys && m.by !== cid && [...m.text.matchAll(mentionRe(roomNames()))].some((x) => x[1].toLowerCase() === myName.toLowerCase());
 
 // Click a person (members list, or a nick in the chat) to start a message to them.
 function mention(c) {
@@ -1589,8 +1654,11 @@ document.addEventListener('click', (e) => {
   if (!b) return;
   const p = pins.find((x) => x.n === +b.dataset.n);
   if (!p) return notice(`There is no pin #${b.dataset.n}.`);
-  select(p.id, true);   // the map is always on screen, so stay where the link was
-  if (e.target.closest('.pedit') && p.by === cid) { setTab('pins'); startLabel(p); }
+  // ✎: to the pin list, to edit the label. Otherwise just show the pin: on the map, which the Chat tab
+  // keeps above it, so the chat stays where it is.
+  if (e.target.closest('.pedit') && p.by === cid) { setTab('pins'); select(p.id, true); startLabel(p); return; }
+  if (view !== 'space') setView('space');
+  select(p.id, true);
 });
 
 function nick(c) {
@@ -1644,14 +1712,19 @@ function setChatHeight(h) {
     e.preventDefault();
     bar.setPointerCapture(e.pointerId);
     const y0 = e.clientY, h0 = $('chat').offsetHeight;
-    const move = (ev) => setChatHeight(h0 + y0 - ev.clientY);
+    let moved = false;   // a click (or the first of a double-click) leaves the split as it is
+    const move = (ev) => {
+      if (!moved && Math.abs(ev.clientY - y0) < 4) return;
+      moved = true;
+      setChatHeight(h0 + y0 - ev.clientY);
+    };
     const done = () => {
-      bar.removeEventListener('pointermove', move);
-      store.set(K.chatH, $('chat').offsetHeight);
+      for (const [t, f] of [['pointermove', move], ['pointerup', done], ['pointercancel', done]]) bar.removeEventListener(t, f);
+      if (moved) store.set(K.chatH, $('chat').offsetHeight);
     };
     bar.addEventListener('pointermove', move);
-    bar.addEventListener('pointerup', done, { once: true });
-    bar.addEventListener('pointercancel', done, { once: true });
+    bar.addEventListener('pointerup', done);
+    bar.addEventListener('pointercancel', done);
   });
   bar.addEventListener('dblclick', (e) => { if (!e.target.closest('button, .me')) { store.set(K.chatH, null); setChatHeight(null); } });
 }
@@ -1660,7 +1733,8 @@ tabMQ.addEventListener('change', () => setChatHeight(store.get(K.chatH, null)));
 
 // Mention sound: a short rising two-note chirp with a little warble on the second note (old IRC
 // client meets TARDIS), synthesised here, no audio file. Quiet, under 0.3 s, and only when someone
-// else mentions you. Browsers only allow sound after the page has been clicked or typed in once.
+// else mentions you. Browsers only allow sound after the page has been clicked or typed in once (a touch
+// counts when the finger lifts).
 let muted = store.get(K.mute, false), actx = null;
 function unlockAudio() {
   try {
@@ -1668,7 +1742,7 @@ function unlockAudio() {
     if (actx.state === 'suspended') actx.resume();
   } catch {}
 }
-for (const t of ['pointerdown', 'keydown']) document.addEventListener(t, unlockAudio, { capture: true, passive: true });
+for (const t of ['pointerdown', 'pointerup', 'keydown']) document.addEventListener(t, unlockAudio, { capture: true, passive: true });
 function chirp(force = false) {
   if ((muted && !force) || !actx || actx.state !== 'running') return;
   const t0 = actx.currentTime + 0.01, out = actx.createGain();
@@ -1724,7 +1798,8 @@ function presence(before, after) {
   }
 }
 
-// Phones, chat out of sight (Pins tab or folded panel): new messages float over the map. Tap one to open the chat.
+// While the chat is out of sight (stacked layouts: folded, or on phones another tab), new messages float
+// over the map or calendar. Tap one to open the chat.
 const toasts = el('div', { id: 'toasts', role: 'status' });
 cont.append(toasts);
 L.DomEvent.disableClickPropagation(toasts);
@@ -1737,7 +1812,11 @@ function mapNote(text) {   // a short, unclickable note in the same spot as chat
 }
 function toast(m) {
   const t = el('div', { className: 'toast float' }, ...msgLine(m));
-  t.addEventListener('click', (e) => { if (!e.target.closest('.pinref')) setTab('chat'); });
+  t.addEventListener('click', (e) => {
+    if (e.target.closest('.pinref')) return;
+    if (fold === 'folded') setFold('open');
+    setTab('chat');
+  });
   toasts.append(t);
   while (toasts.children.length > 3) toasts.firstChild.remove();
   setTimeout(() => t.remove(), 5000);
@@ -1746,17 +1825,20 @@ function toast(m) {
 $('chatform').addEventListener('submit', async (e) => {
   e.preventDefault();
   const text = $('chatin').value.trim();
-  if (!text || !roomId) return;
+  if (!text) return;
   $('chatin').value = '';
   if (await post({ type: 'chat', text }) && !$('chatin').value) $('chatin').value = text;   // failed: give it back
 });
 
-/* ---------- multiplayer ---------- */
+// The chat just came into view: the pop-ups it replaces go, and it shows the latest messages.
+function chatSeen() {
+  if (!chatShown()) return;
+  toasts.replaceChildren();
+  scrollChat();
+}
+/* ---------- room: connecting to it, its state as it arrives, the room box and the people list ---------- */
 
 function renderRoom() {
-  document.body.classList.toggle('inroom', !!roomId);
-  $('room').hidden = !roomId;
-  if (!roomId) return;
   $('dot').className = 'dot ' + status;
   const n = room.online.length;
   $('roomtxt').textContent = status === 'live' ? roomId
@@ -1776,7 +1858,8 @@ function renderRoom() {
     d.style[identicon ? 'borderColor' : 'background'] = room.players[c]?.color || 'gray';
     return d;
   };
-  $('members').hidden = scrim.hidden = !membersOpen || status !== 'live';
+  if (status !== 'live') membersOpen = false;   // (not reopening by itself on reconnect)
+  $('members').hidden = scrim.hidden = !membersOpen;
   if ($('members').hidden) return;
   const host = membersOpen === 'chat' ? $('chatform') : $('room');   // under "N online", or above the message box
   if ($('members').parentElement !== host) host.append($('members'));
@@ -1815,9 +1898,11 @@ fitName();
 $('myname').addEventListener('input', fitName);
 $('myname').addEventListener('change', () => {
   const v = $('myname').value.replace(/\s+/g, ' ').trim().slice(0, 16);   // (the server's MAX_NAME)
-  if (!v) { $('myname').value = myName; fitName(); return; }
+  $('myname').value = v || myName;
+  fitName();
+  if (!v) return;
   myName = v; store.set(K.name, v);
-  if (roomId) post({ type: 'rename', name: v });
+  post({ type: 'rename', name: v });
 });
 
 let firstState = true, seedArea = null, fitOnFirst = false, helpText = '';
@@ -1828,7 +1913,7 @@ function applyState(s) {
   const wasOnline = new Set(room.online);
   room.players = s.players; room.online = s.online;
   if (!first) presence(wasOnline, new Set(s.online));
-  pins = s.pins.map(normalize);
+  pins = s.pins;
 
   // Area: server is the source of truth. A room's creator seeds it once with their current area.
   const same = JSON.stringify(s.area) === JSON.stringify(areaArr());
@@ -1837,25 +1922,23 @@ function applyState(s) {
     setArea(s.area);
     if (!first && s.areaBy !== cid) notice(`${nameOf(s.areaBy)} ${s.area ? 'updated' : 'cleared'} the area`);
   }
-  if (first && fitOnFirst && s.area) fitArea();
+  if (first && fitOnFirst && s.area) { initialFit = fitArea; fitArea(); }   // (and the load-time refit fits the area too)
   if (first) seedArea = null;
 
-  // "fresh" = new pins plus pins that moved (same id, new spot)
-  const fresh = first ? [] : pins.filter((p) => { const o = prev.get(p.id); return !o || o.lat !== p.lat || o.lng !== p.lng; });
+  // New pins: yours gets selected (and scrolled to in the list), others' get a note.
+  const fresh = first ? [] : pins.filter((p) => !prev.has(p.id));
   const mine = fresh.find((p) => p.by === cid);
-  if (mine) { selectedId = mine.id; showNewest(); }
+  if (mine) selectedId = mine.id;
   const theirs = fresh.filter((p) => p.by !== cid);
-  if (theirs.length) {
-    const t = theirs[0];
-    notice(`${nameOf(t.by)} ${prev.has(t.id) ? `moved their pin #${t.n}` : `dropped pin #${t.n}`}${theirs.length > 1 ? ` (+${theirs.length - 1})` : ''}`);
-  }
+  if (theirs.length) notice(`${nameOf(theirs[0].by)} dropped pin #${theirs[0].n}${theirs.length > 1 ? ` (+${theirs.length - 1})` : ''}`);
   syncMarkers(fresh.map((p) => p.id));
   renderList();
+  if (mine) $('list').querySelector('.sel')?.scrollIntoView({ block: 'nearest' });
   renderRoom();
   const sig = JSON.stringify(s.players);   // chat names follow renames
   if (sig !== chatSig) { chatSig = sig; renderChat(); }
   refreshPinRefs();   // labels and owners behind "#n" links
-  room.range = s.range; room.avail = s.avail || {}; room.tstat = s.tstat || {}; room.tvotes = s.tvotes || {}; room.event = s.event; renderHname();
+  room.range = s.range; room.avail = s.avail; room.tstat = s.tstat; room.tvotes = s.tvotes; room.event = s.event; renderHname();
   renderTime();
 }
 
@@ -1865,9 +1948,9 @@ function connect(id, seed = null) {
   es?.close();
   roomId = id; seedArea = seed; firstState = true; status = 'connecting';
   fitOnFirst = !parseHash().view;
-  room = { players: {}, online: [] };
+  room = blankRoom();   // nothing of the last room shows under the new id while this one loads
   pins = []; selectedId = null; chat = []; chatSig = '';
-  syncMarkers(); renderList(); renderRoom(); renderChat();
+  syncMarkers(); renderList(); renderRoom(); renderChat(); renderHname(); renderTime();
   es = new EventSource(`/api/rooms/${id}/events?${new URLSearchParams({ cid, name: myName })}`);
   es.addEventListener('state', (e) => { status = 'live'; helpText = ''; applyState(JSON.parse(e.data)); });
   // Full history on every (re)connect, then one message per event.
@@ -1894,10 +1977,8 @@ async function diagnose(id) {
   try { serverInfo = await (await fetch('/api/info')).json(); } catch {
     return `${location.host} is not running server.js (static files only, e.g. python -m http.server). ${RUN_HINT}`;
   }
-  const ac = new AbortController();
   try {
-    const r = await fetch(`/api/rooms/${id}/events?cid=${cid}`, { signal: ac.signal });
-    ac.abort();
+    const r = await fetch(`/api/rooms/${id}/events?cid=${cid}`, { method: 'HEAD' });   // would it open? (without joining)
     return r.ok
       ? 'The server is up but the live stream is being cut off. A proxy or tunnel in front of it may be buffering event streams.'
       : `The server refused this room (HTTP ${r.status}).`;
@@ -1906,7 +1987,7 @@ async function diagnose(id) {
 
 // A fresh room, empty and with a new link; the old one carries on for whoever's still in it.
 function newRoom() {
-  setTab('pins'); setView('space');
+  setTab('pins');
   connect(roomCode());
   updateUrl();
   notice('New huddle. The link button next to Drop copies an invite link.');
@@ -1919,10 +2000,10 @@ $('leave').addEventListener('click', newRoom);
 // the user touches the app: a late answer must not yank the map away from what they're doing.
 let touched = false;
 for (const t of ['pointerdown', 'wheel', 'keydown']) {
-  $('app').addEventListener(t, (e) => { if (!e.target.closest?.('#tut')) touched = true; }, { capture: true, passive: true });
+  $('app').addEventListener(t, () => { touched = true; }, { capture: true, passive: true });   // (the tutorial's card is outside #app)
 }
 function locate() {
-  if (!initialFit || areaLayer || hash.room || !window.isSecureContext || !navigator.geolocation) return;
+  if (!initialFit || areaLayer || hash.room || hash.area || !window.isSecureContext || !navigator.geolocation) return;
   navigator.geolocation.getCurrentPosition((pos) => {
     if (touched) return;
     const { latitude, longitude, accuracy } = pos.coords;
@@ -1941,7 +2022,7 @@ const TUT = [
   { v: 'space', els: ['share', 'draw'], h: 'Share, and limit the area', t: 'The share button copies a link for your huddle mates, so everyone can weigh in with pins, votes, and arguments in the chat. Limit area keeps pins inside an area; anyone can set or clear it.' },
   { v: 'time', els: ['tgrid', 'tany', 'tskip'], h: 'When you\'re free', t: 'Mark when you\'re free; the others mark theirs. Hours where everyone is free turn green; then vote on them. You can say Free anytime or Skip, and still vote either way.' },
   { v: 'time', els: ['pick', 'hname'], demo: true, h: 'The huddle', t: 'The most-voted place and time show up here: this is where the huddle happens. Add it to your calendar with the button; the event is named after the huddle, which anyone can rename at the top.' },
-  { v: 'chat', els: ['chatform', 'me'], h: 'Chat', t: () => `Your name is ${myName} (click it to change it). Chat with the others here: type someone's name to notify them, and #3 to link pin 3.` },
+  { v: 'chat', els: ['chatform', 'me'], h: 'Chat', t: () => `Your name is ${myName} (click it to change it). Chat with the others here: type @ and someone's name to notify them, and #3 to link pin 3.` },
 ];
 
 // The "?" by the title: the tutorial again, any time.
@@ -1951,14 +2032,13 @@ function tutorial(done) {
   store.set(K.tut, true);   // once, even if the tab is closed halfway through
   // Afterwards, back to the view or tab (and fold) you were on.
   const before = { view, tab, fold };
-  const steps = TUT.filter((s) => s.v === 'space' || roomId);
+  const steps = TUT;
   // Stacked layouts: every step points at the panel, so make sure it's showing.
   if (tabMQ.matches) { setFold('open'); setTab('pins'); }
   // The chat is beside the lists except on phones, where it's a tab (over whichever view was last).
   const goTo = (v) => {
     if (v === 'chat') { if (phoneMQ.matches) setTab('chat'); return; }
-    if (tabMQ.matches) { if (tab !== (v === 'time' ? 'time' : 'pins')) setTab(v === 'time' ? 'time' : 'pins'); }
-    else if (view !== v) setView(v);
+    if (view !== v || tab === 'chat') setTab(v === 'time' ? 'time' : 'pins');
   };
   // The card floats over the middle of whatever's showing: the map or the calendar.
   const place = () => {
@@ -1992,11 +2072,9 @@ function tutorial(done) {
     setDemo(false);
     document.removeEventListener('keydown', onKey, true);
     removeEventListener('resize', place);
-    if (tabMQ.matches) {
-      if (before.tab === 'chat') setView(before.view);   // the Chat tab keeps whichever view was above it
-      setTab(before.tab);
-      setFold(before.fold);
-    } else setView(before.view);
+    setView(before.view);
+    setTab(before.tab);   // (the Chat tab keeps that view above it)
+    setFold(before.fold);
     done();
   }
   const onKey = (e) => { if (e.key === 'Escape') { e.stopImmediatePropagation(); close(); } };
@@ -2011,60 +2089,66 @@ function tutorial(done) {
   next.focus();
 }
 
-/* ---------- time: when everyone is free (rooms) ---------- */
+/* ---------- time: the calendar everyone marks their free hours on, and its list of hours ---------- */
 
 // The room's grid: `days` days from `start`, hours `from`..`to`, in time zone `tz` (see server.js).
 // Each cell is an hour, stored as the absolute instant it starts, so the grid is drawn in the room's
 // zone and anyone elsewhere is told so.
 const HOUR = 3600e3;
 const myTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-let view = 'space', tSel = null, paint = null;   // tSel: the hour clicked in the list (outlined on the calendar)
+let tSel = null, paint = null;   // tSel: the hour clicked in the list (outlined on the calendar)
 
+// Date formatters are slow to make and the calendar formats thousands of times a render: keep them.
+const dtfs = new Map();
+function dtf(locale, o) {
+  const k = `${locale}|${JSON.stringify(o)}`;
+  if (!dtfs.has(k)) dtfs.set(k, new Intl.DateTimeFormat(locale || [], o));
+  return dtfs.get(k);
+}
+const partsIn = (ms, tz) => Object.fromEntries(dtf('en-US', { timeZone: tz, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' })
+  .formatToParts(ms).map((x) => [x.type, x.value]));
 // Minutes `tz` is ahead of UTC at instant `ms`.
 function tzOffset(ms, tz) {
-  const p = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: tz, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' })
-    .formatToParts(ms).map((x) => [x.type, x.value]));
+  const p = partsIn(ms, tz);
   return (Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute, +p.second) - Math.floor(ms / 1000) * 1000) / 60e3;
 }
-// The instant it's `hour`:00 on day `start` + `day` in `tz`.
-function zonedHour(start, day, hour, tz) {
-  const [y, m, d] = start.split('-').map(Number), wall = Date.UTC(y, m - 1, d + day, hour);
+// The instant it's `hour`:`min` on day `start` + `day` in `tz`, or null where the clocks skip that
+// time (the hour lost when daylight saving starts: the calendar leaves a gap there).
+function zonedHour(start, day, hour, tz, min = 0) {
+  const [y, m, d] = start.split('-').map(Number), wall = Date.UTC(y, m - 1, d + day, hour, min);
   let t = wall;
   for (let i = 0; i < 2; i++) t = wall - tzOffset(t, tz) * 60e3;   // twice settles a DST edge
-  return t;
+  return t + tzOffset(t, tz) * 60e3 === wall ? t : null;
 }
-const todayIn = (tz) => new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(Date.now());
+const todayIn = (tz) => { const p = partsIn(Date.now(), tz); return `${p.year}-${p.month}-${p.day}`; };
 // What the grid shows. With a time limit (someone's box, like the map's limit area): just that range,
 // stretched to fill the view, the way the map zooms to its area. Without one: four weeks from today,
 // all 24 hours, in your own time zone; either way 7 days fit at once and more scroll sideways.
-const gridSpec = () => (room.range ? { ...room.range, fit: true } : { tz: myTz, start: todayIn(myTz), days: 28, from: 0, to: 24, fit: false });
+const gridSpec = () => (room.range ? { ...room.range, min: 0, fit: true } : { tz: myTz, start: todayIn(myTz), days: 28, from: 0, to: 24, min: roomMinute(), fit: false });
+// Without a limit everyone sees their own zone, but zones aren't all whole hours apart (India is
+// +5:30, Nepal +5:45): there, hours start at the minute most of the room's marked hours start on, so
+// "10:30" here is the "05:00" someone in London marked. With nothing marked yet, at :00.
+function roomMinute() {
+  const n = new Map();
+  const count = (x) => { const k = (x / 60e3) % 60; n.set(k, (n.get(k) || 0) + 1); };   // the minute in UTC
+  for (const list of Object.values(room.avail)) list.forEach(count);
+  Object.keys(room.tvotes).forEach((x) => count(+x));
+  if (!n.size) return 0;
+  const [utcMin] = [...n].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0];
+  return (((utcMin + tzOffset(Date.now(), myTz)) % 60) + 60) % 60;
+}
 let tLimitMode = false, limitBox = null;   // drawing a time limit: the box so far, {from: [d, h], to: [d, h]}
-const fmtIn = (ms, tz, o) => new Intl.DateTimeFormat([], { timeZone: tz, ...o }).format(ms);
-const hourLabel = (h) => `${String(h % 24).padStart(2, '0')}:00`;
+const fmtIn = (ms, tz, o) => dtf('', { timeZone: tz, ...o }).format(ms);
+const hourLabel = (h, min) => `${String(h % 24).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
 // "Fri 16": built from parts, since some locales put the day first ("16 Fri").
 const dayLabel = (ms, tz) => `${fmtIn(ms, tz, { weekday: 'short' })} ${fmtIn(ms, tz, { day: 'numeric' })}`;
 const slotLabel = (ms, tz) => `${fmtIn(ms, tz, { weekday: 'short', day: 'numeric', month: 'short' })}, ${fmtIn(ms, tz, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })}`;
-
-function setView(v) {
-  view = roomId ? v : 'space';
-  store.set(K.tab, { view, tab });
-  document.body.classList.toggle('view-time', view === 'time');
-  $('time').hidden = view !== 'time';
-  for (const b of $('views').children) b.setAttribute('aria-selected', String(b.dataset.v === view));
-  (view === 'time' ? $('time') : cont).append(toasts);   // notes and chat pop-ups follow the visible view
-  if (view !== 'time') setLimitMode(false);
-  renderTime();
-}
-for (const b of $('views').children) b.addEventListener('click', () => setView(b.dataset.v));
-// Crossing into the phone layout while on Time: show it as the Time tab.
-tabMQ.addEventListener('change', () => { if (tabMQ.matches) setTab(view === 'time' ? 'time' : tab === 'time' ? 'pins' : tab); });
-// Widening a phone past the Chat tab: back to the map or calendar tab.
-phoneMQ.addEventListener('change', () => { if (tabMQ.matches) setTab(tab); });
 
 // Limit time: draw a box on the calendar (days × hours) to set the range everyone picks and votes
 // within; while one is set, the button clears it. Same idea as the map's Limit area.
 function setLimitMode(on) {
   tLimitMode = on; limitBox = null;
+  if (paint?.kind === 'limit') paint = null;   // Esc mid-drag: drop the box
   renderTime();
 }
 $('tlimit').addEventListener('click', () => {
@@ -2087,9 +2171,6 @@ function setAnswer(v) {
 }
 $('tany').addEventListener('click', () => setAnswer(room.tstat?.[cid] === 'any' ? 'hours' : 'any'));
 $('tskip').addEventListener('click', () => setAnswer(room.tstat?.[cid] === 'out' ? 'hours' : 'out'));
-
-// The calendar file's button (in the room box, with the pick).
-const CAL_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18M12 14v4M10 16h4"/></svg>';
 
 // Clear mine: all your hours, with the same click-twice confirm as the pin list's.
 let tClearTimer = null;
@@ -2119,7 +2200,6 @@ function freeBySlot() {
   for (const [c, list] of Object.entries(avail)) for (const x of list) (m.get(x) ?? m.set(x, []).get(x)).push(c);
   return m;
 }
-const topPin = () => [...pins].sort((a, b) => score(b) - score(a) || b.ts - a.ts).find((p) => score(p) > 0) || null;
 
 // Who counts: everyone answering by hours, i.e. who hasn't said "free anytime" or "skip": the people
 // who painted hours here, and anyone online who hasn't yet. An hour is everyone's (green) only when all
@@ -2143,13 +2223,13 @@ function hourState(who, N, x) {
   return { f, n, all, cls: all ? 'all' : n >= 2 ? 'some' : n === 1 ? 'one' : 'nofree' };
 }
 
-// The calendar's hours, as instants (cached: working them out takes a while).
+// The calendar's hours, as instants, day by day (null in a DST gap; cached: working them out takes a while).
 let slotCache = { key: '', slots: [] };
 function rangeSlots(r) {
-  const key = [r.tz, r.start, r.days, r.from, r.to].join('|');
+  const key = [r.tz, r.start, r.days, r.from, r.to, r.min].join('|');
   if (slotCache.key !== key) {
     const slots = [];
-    for (let d = 0; d < r.days; d++) for (let h = r.from; h < r.to; h++) slots.push(zonedHour(r.start, d, h, r.tz));
+    for (let d = 0; d < r.days; d++) for (let h = r.from; h < r.to; h++) slots.push(zonedHour(r.start, d, h, r.tz, r.min));
     slotCache = { key, slots };
   }
   return slotCache.slots;
@@ -2162,20 +2242,20 @@ const signed = (n) => (n > 0 ? `+${n}` : String(n));
 // (two or more free, everyone free, or voted on) best first, and the pick: the most-voted hour, picked
 // automatically like the most-voted pin (ties: more people free, then earlier).
 function timeModel() {
-  const r = gridSpec(), slots = rangeSlots(r), free = freeBySlot();
+  const r = gridSpec(), cells = rangeSlots(r), slots = cells.filter((x) => x != null), free = freeBySlot();
   const who = timeWho(slots, free), N = who.counted.length;
   const st = new Map(slots.map((x) => [x, hourState(who, N, x)]));
   const ranked = slots.filter((x) => st.get(x).n >= 2 || st.get(x).all || Object.keys(tVotesOf(x)).length)
     .sort((a, b) => tScore(b) - tScore(a) || st.get(b).n - st.get(a).n || a - b);
   const top = ranked.length && tScore(ranked[0]) > 0 ? ranked[0] : null;
-  return { r, slots, free, who, N, st, ranked, top };
+  return { r, cells, free, who, N, st, ranked, top };
 }
 
 function renderTime() {
-  const m = roomId ? timeModel() : null;
+  const m = timeModel();
   renderPick(m);
-  if (view !== 'time' || !m) return;
-  const { r, slots, free, who, N, st, ranked, top } = m, tz = r.tz;
+  if (view !== 'time') return;
+  const { r, cells: slots, free, who, N, st, ranked, top } = m, tz = r.tz;
   $('ttz').textContent = tz === myTz ? '' : `Times in ${tz} (you're in ${myTz})`;
   $('tlimit').textContent = tLimitMode ? 'Drag a box… (Esc)' : room.range ? 'Time limited ×' : 'Limit time';
   $('tlimit').classList.toggle('set', !!room.range && !tLimitMode);
@@ -2207,12 +2287,18 @@ function renderTime() {
   const at = (d, h) => {
     if (h < r.from || h >= r.to) return null;
     const x = slots[d * (r.to - r.from) + (h - r.from)];
-    return { x, ...st.get(x), mine: (free.get(x) || []).includes(cid) };
+    return x == null ? { x, cls: 'gap', n: 0 } : { x, ...st.get(x), mine: (free.get(x) || []).includes(cid) };
   };
   for (let h = r.from; h < r.to; h++) {
-    cells.push(el('div', { className: 'hh' }, hourLabel(h)));
+    cells.push(el('div', { className: 'hh' }, hourLabel(h, r.min)));
     for (let d = 0; d < r.days; d++) {
       const q = at(d, h), up = at(d, h - 1), down = at(d, h + 1), { x, f, n, all, mine } = q;
+      if (x == null) {   // skipped by the clocks
+        const c = el('div', { className: 'c gap', title: 'This hour doesn\'t happen here: the clocks go forward' });
+        c.dataset.d = d; c.dataset.h = h;
+        cells.push(c);
+        continue;
+      }
       const same = (o) => o && o.cls === q.cls && o.n === q.n;
       const cls = ['c', q.cls, h === r.from && 'first', h === r.to - 1 && 'last',
         n && !same(up) && 'runtop', n && !same(down) && 'runend',
@@ -2275,8 +2361,13 @@ $('tgrid').addEventListener('pointerdown', (e) => {
   const c = e.target.closest('.c');
   if (!c || e.button !== 0) return;
   if (e.pointerType === 'touch') {
+    if (hold || paint) {   // a second finger: a pinch or a scroll, not a stroke
+      if (hold) { clearTimeout(hold.timer); hold = null; }
+      return;
+    }
     hold = { id: e.pointerId, x: e.clientX, y: e.clientY, cell: c, timer: setTimeout(() => {
       const h = hold;
+      if (!h) return;
       hold = null;
       navigator.vibrate?.(10);
       beginStroke(h.cell, h.id);
@@ -2315,9 +2406,12 @@ function edgeScroll() {
   paint.raf = requestAnimationFrame(edgeScroll);
 }
 function fillStroke() {
-  const r = gridSpec(), [d0, h0] = paint.from, [d1, h1] = paint.to, cells = new Set();
+  const r = gridSpec(), slots = rangeSlots(r), [d0, h0] = paint.from, [d1, h1] = paint.to, cells = new Set();
   for (let d = Math.min(d0, d1); d <= Math.max(d0, d1); d++) {
-    for (let h = Math.min(h0, h1); h <= Math.max(h0, h1); h++) cells.add(zonedHour(r.start, d, h, r.tz));
+    for (let h = Math.min(h0, h1); h <= Math.max(h0, h1); h++) {
+      const x = slots[d * (r.to - r.from) + (h - r.from)];
+      if (x != null) cells.add(x);
+    }
   }
   if (paint.mode === 'add') { paint.add = cells; paint.remove = new Set(); } else { paint.remove = cells; paint.add = new Set(); }
   renderTime();
@@ -2335,14 +2429,21 @@ function endStroke() {
     $('time').scrollTo(0, 0);
     return;
   }
-  const { add, remove } = paint;
-  const mine = new Set(room.avail?.[cid] || []);
+  const { add, remove } = paint, before = room.avail[cid];
+  const mine = new Set(before || []);
   for (const x of add) mine.add(x);
   for (const x of remove) mine.delete(x);
-  room.avail = { ...room.avail, [cid]: [...mine] };   // shown now; the server's state confirms it
+  const after = [...mine];
+  room.avail = { ...room.avail, [cid]: after };   // shown now; the server's state confirms it
   paint = null;
   renderTime();
-  if (add.size || remove.size) post({ type: 'avail', add: [...add], remove: [...remove] });
+  if (!add.size && !remove.size) return;
+  post({ type: 'avail', add: [...add], remove: [...remove] }).then((err) => {
+    if (!err || room.avail[cid] !== after) return;   // taken, or newer state has arrived since
+    room.avail = { ...room.avail, [cid]: before };   // refused: take the stroke back
+    if (!before) delete room.avail[cid];
+    renderTime();
+  });
 }
 $('tgrid').addEventListener('pointerup', (e) => {
   if (hold && e.pointerId === hold.id) {   // a tap: just that hour
@@ -2358,6 +2459,13 @@ $('tgrid').addEventListener('pointercancel', (e) => {
   if (hold && e.pointerId === hold.id) { clearTimeout(hold.timer); hold = null; return; }
   endStroke();
 });
+/* ---------- pick: the most-voted time and place, the huddle's name, and its calendar file ---------- */
+
+// The most-voted pin (ties: the newer one), or null while none has a positive score.
+const topPin = () => [...pins].sort((a, b) => score(b) - score(a) || b.ts - a.ts).find((p) => score(p) > 0) || null;
+
+// The calendar file's button (in the room box, with the pick).
+const CAL_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18M12 14v4M10 16h4"/></svg>';
 
 // The tutorial's example pick, shown in the room box while it points there and nothing's picked yet.
 let tutDemo = false;
@@ -2403,41 +2511,39 @@ function renderHname() {
 }
 hname.addEventListener('input', fitHname);
 fitHname();
-hname.addEventListener('change', () => post({ type: 'event', title: hname.value }));
+hname.addEventListener('change', () => {
+  const title = hname.value.replace(/\s+/g, ' ').trim();
+  room.event = title ? { title } : null;   // shown now (the tab title too); the server's state confirms it
+  post({ type: 'event', title });
+});
+hname.addEventListener('blur', renderHname);   // renames that came in while it had focus
 hname.addEventListener('keydown', (e) => { if (e.key === 'Enter') hname.blur(); else if (e.key === 'Escape') { hname.value = room.event?.title || ''; hname.blur(); } });
 
-// An .ics file for the picked time and place (RFC 5545: CRLF lines, folded at 75 octets). The time is
-// written in your own time zone; the location is the pin's link on the map you have selected (Google
-// or OSM); the title is the huddle's name.
+// An .ics file for the picked time and place (RFC 5545: CRLF lines, folded at 75 octets). Times are
+// in UTC, which every calendar shows in its own zone; the location is the pin's link on the map you
+// have selected (Google or OSM); the title is the huddle's name.
 function downloadIcs(l, p) {
-  const stamp = (ms) => new Date(ms).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
-  const wall = (ms) => {   // local wall-clock time in myTz, as 20261017T110000
-    const q = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: myTz, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' })
-      .formatToParts(ms).map((x) => [x.type, x.value]));
-    return `${q.year}${q.month}${q.day}T${q.hour}${q.minute}${q.second}`;
-  };
-  const off = (ms) => { const m = tzOffset(ms, myTz), a = Math.abs(m); return `${m < 0 ? '-' : '+'}${String(Math.floor(a / 60)).padStart(2, '0')}${String(a % 60).padStart(2, '0')}`; };
+  const utc = (ms) => new Date(ms).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');   // 20261017T050000Z
   const text = (s) => String(s).replace(/[\;,]/g, (c) => `\\${c}`).replace(/\n/g, '\\n');
-  const foldLine = (line) => {
+  const bytes = (ch) => (ch.codePointAt(0) < 0x80 ? 1 : ch.codePointAt(0) < 0x800 ? 2 : ch.codePointAt(0) < 0x10000 ? 3 : 4);   // UTF-8
+  const foldLine = (line) => {   // never splitting a character
     const out = [];
-    let cur = '';
+    let cur = '', n = 0;
     for (const ch of line) {
-      if (new TextEncoder().encode(cur + ch).length > (out.length ? 74 : 75)) { out.push(cur); cur = ''; }
-      cur += ch;
+      if (n + bytes(ch) > (out.length ? 74 : 75)) { out.push(cur); cur = ''; n = 0; }
+      cur += ch; n += bytes(ch);
     }
     return [...out, cur].join('\r\n ');
   };
-  const ev = room.event || {}, end = l.slot + (l.len || HOUR);
+  const ev = room.event || {};
   const mapLink = p ? (base === 'google' ? gmapsUrl(p) : osmUrl(p)) : '';
   const lines = [
     'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Huddle//Huddle//EN', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
-    // The zone's offset at the event (zones that change offset are approximated by that one offset).
-    'BEGIN:VTIMEZONE', `TZID:${myTz}`, 'BEGIN:STANDARD', 'DTSTART:19700101T000000', `TZOFFSETFROM:${off(l.slot)}`, `TZOFFSETTO:${off(l.slot)}`, 'END:STANDARD', 'END:VTIMEZONE',
     'BEGIN:VEVENT',
     `UID:${roomId}-${l.slot}@huddle`,
-    `DTSTAMP:${stamp(Date.now())}`,
-    `DTSTART;TZID=${myTz}:${wall(l.slot)}`,
-    `DTEND;TZID=${myTz}:${wall(end)}`,
+    `DTSTAMP:${utc(Date.now())}`,
+    `DTSTART:${utc(l.slot)}`,
+    `DTEND:${utc(l.slot + (l.len || HOUR))}`,
     `SUMMARY:${text(ev.title || (p?.label ? `Huddle at ${p.label}` : 'Huddle'))}`,
     ...(p ? [`LOCATION:${text(mapLink)}`, `GEO:${p.lat.toFixed(6)};${p.lng.toFixed(6)}`] : []),
     `DESCRIPTION:${text([p && `Place: #${p.n}${p.label ? ` ${p.label}` : ''}`, `Room: ${shareUrl().href}`].filter(Boolean).join('\n'))}`,
@@ -2448,19 +2554,15 @@ function downloadIcs(l, p) {
   document.body.append(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
-
-/* ---------- boot ---------- */
+/* ---------- boot: join the room, restore the view, first-run tutorial ---------- */
 
 fetch('/api/info').then((r) => r.json()).then((i) => { serverInfo = i; }).catch(() => {});
-syncMarkers();
-renderList();
-renderRoom();
 connect(hash.room || roomCode(), hash.room ? null : hash.area);   // no room in the link: a new one
 // Back to the view (Space or Time) and, in the stacked layouts, the tab that were open.
 {
   const s = store.get(K.tab, null);
-  if (s?.view === 'time' || s?.view === 'space') setView(s.view);
-  if (tabMQ.matches && ['pins', 'time', 'chat'].includes(s?.tab)) setTab(s.tab);
+  setView(s?.view);
+  if (s?.tab === 'chat') setTab('chat');
 }
 updateUrl();
 if (store.get(K.tut, false)) locate(); else tutorial(locate);   // ask for location after the tutorial, not over it

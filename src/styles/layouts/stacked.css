@@ -4,8 +4,8 @@
      the screen. The list entries are more compact. */
   @media (max-width: 960px) {
     #app { flex-direction: column; }
-    body.inroom #app { bottom: 44px; }
-    #panel { width: 100%; height: 45%; min-height: 200px; border-left: 0; border-top: 1px solid var(--line-strong); box-shadow: 0 -2px 10px rgba(0, 0, 0, .1); }
+    #app { bottom: 44px; }
+    #panel { width: 100%; height: 45%; min-height: 200px; border-left: 0; border-top: 1px solid var(--line-strong); box-shadow: var(--sh-panel); }
     #scroller > header { padding: 8px 12px 0; }
     .h1row { margin-bottom: 8px; }
     h1 { font-size: 15px; }

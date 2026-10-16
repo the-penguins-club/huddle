@@ -1,11 +1,11 @@
-/* ---------- state ---------- */
+/* ---------- state: the room as the server last sent it, and what's selected ---------- */
 
-// Pin: {id, n, lat, lng, ts, by (cid), votes: {cid: 1|-1}}
-const normalize = (p) => ({ ...p, by: p.by || cid, votes: p.votes || {} });
 // Everything happens in a room (there's no solo mode): the room id in the link is the only key to it.
-let pins = [];                         // the room's pins, from the server
-let roomId = null, es = null, status = 'connecting';
-let room = { players: {}, online: [] };
+// The shapes are server.js's (see blankRoom there). Pin: {id, n, lat, lng, ts, by (cid), votes: {cid: 1|-1}, label?, manual?}
+let pins = [];
+let roomId = null, es = null, status = 'connecting';   // status: connecting | live | reconnecting | offline
+const blankRoom = () => ({ players: {}, online: [], event: null, range: null, avail: {}, tstat: {}, tvotes: {} });
+let room = blankRoom();
 let selectedId = null, sortMode = store.get(K.sort, 'new') === 'top' ? 'top' : 'new';
 let serverInfo = null;
 const markers = new Map();

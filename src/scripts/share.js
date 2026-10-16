@@ -1,4 +1,4 @@
-/* ---------- share ---------- */
+/* ---------- share: the room's link, copied to the clipboard ---------- */
 
 function shareUrl() {
   updateUrl();

@@ -4,10 +4,10 @@
 // the user touches the app: a late answer must not yank the map away from what they're doing.
 let touched = false;
 for (const t of ['pointerdown', 'wheel', 'keydown']) {
-  $('app').addEventListener(t, (e) => { if (!e.target.closest?.('#tut')) touched = true; }, { capture: true, passive: true });
+  $('app').addEventListener(t, () => { touched = true; }, { capture: true, passive: true });   // (the tutorial's card is outside #app)
 }
 function locate() {
-  if (!initialFit || areaLayer || hash.room || !window.isSecureContext || !navigator.geolocation) return;
+  if (!initialFit || areaLayer || hash.room || hash.area || !window.isSecureContext || !navigator.geolocation) return;
   navigator.geolocation.getCurrentPosition((pos) => {
     if (touched) return;
     const { latitude, longitude, accuracy } = pos.coords;

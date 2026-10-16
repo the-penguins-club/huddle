@@ -11,6 +11,7 @@ and one dependency-free Node server (`server.js`) holding rooms in memory, saved
 | `node server.js` | serve on http://127.0.0.1:8765 (`HOST=0.0.0.0` for the LAN) |
 | `node build.js` | build `index.html` from `src/` (`--watch` to rebuild on save, `--check` to verify) |
 | `node dev/dummies.js [room] [n] [min]` | fill a room with fake members who pin, vote, chat, mark hours |
+| `node scripts/harness-sync.js` | refresh `docs/map.md`'s generated sections (the hooks do this) |
 
 The server reads `index.html` on every request: after a page change, build and reload. After a
 `server.js` change, restart the server.
@@ -48,7 +49,11 @@ docs updates that go with a change go in the same commit. After cloning:
 
 This file and `docs/` are the project's memory; keep them true and short.
 
-- Moved, added or removed a file or `src/` part: update `docs/map.md` in the same commit.
+- The parts table and the action list in `docs/map.md` are generated from each part's first comment
+  and the `case` comments in `server.js`: keep those comments descriptive. Agent hooks rebuild and
+  resync after every edit, and the pre-commit hook checks both for everyone. The rest of map.md is
+  hand-written: update it when files move.
+- When an agent stops with code changed and none of the docs below, a hook asks it to check them.
 - Changed behaviour or a UI decision: update `docs/design.md`.
 - Learned something the hard way (a tool quirk, a regression and its cause): one entry in
   `docs/lessons.md`. Prune entries that stop being true.

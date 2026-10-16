@@ -20,7 +20,7 @@
   .list > li.sel { background: color-mix(in srgb, var(--acc) 6%, transparent); box-shadow: inset 3px 0 var(--acc); }
   .list > li.empty { display: block; padding: 24px 16px; background: none; color: var(--mut); text-align: center; cursor: default; }
   .num { flex: none; min-width: 28px; height: 28px; padding: 0 6px; display: grid; place-items: center; border-radius: 14px; background: var(--line); font-size: var(--fs-s); font-weight: 600; font-variant-numeric: tabular-nums; }
-  .num.one { background: var(--t-one); color: var(--t-text); }
+  .num.one { background: var(--t-one); }
   .num.some { background: var(--t-some); color: var(--t-text); }
   .num.all { background: var(--t-all); color: var(--t-text); }
   .meta { flex: 1; min-width: 0; }
