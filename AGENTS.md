@@ -41,7 +41,8 @@ changing an area.
   stays in that one unless the ask says otherwise; check all three anyway.
 - Comments say why and what a reader would otherwise misread, in plain sentences, like the ones there.
 - Server actions are validated and capped in `server.js`; keep `dev/dummies.js` working with them.
-- Settings in the browser keep their `randompin.*` keys (renaming them would reset everyone's).
+- Browser settings are `huddle.*` keys. The old `randompin.*` ones are moved over on load
+  (`src/head/settings.js`); renaming keys again needs the same, or everyone's settings reset.
 - Verify UI changes in the browser before saying they're done: the `verify-ui` skill.
 
 ## Commits

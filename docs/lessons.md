@@ -49,4 +49,5 @@ Things that cost time before. One line of cause, one of what to do. Prune what s
 ## Data
 
 - Test in throwaway rooms (`freeformtest1`, `tuttest1`), and undo test votes, names and labels.
-- Settings keys are `randompin.*` from before the rename; keep them.
+- Browser settings keys moved from `randompin.*` to `huddle.*` with a one-time copy on load
+  (`src/head/settings.js`): rename keys only with such a move, or everyone's settings reset.

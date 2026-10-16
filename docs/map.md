@@ -59,6 +59,7 @@
 <!-- generated: parts -->
 | part | what it is (its first comment) |
 |---|---|
+| `head/settings.js` | Browser settings: the project was called Random Pin, and its settings were stored under randompin.* keys |
 | `head/theme-init.js` | Theme: follows the system unless you've picked the other one with the sun/moon button (remembered) |
 | `styles/index.styl` | Huddle's stylesheet, in cascade order: build.js compiles this file into the page's <style> |
 | `styles/helpers.styl` | Stylus helpers, for CSS that Stylus would otherwise read as its own |
@@ -110,7 +111,7 @@
 | `scripts/boot.js` | boot: join the room, restore the view, first-run tutorial |
 <!-- /generated -->
 
-## Browser settings (`localStorage`, keys `randompin.*`)
+## Browser settings (`localStorage`, keys `huddle.*`; older `randompin.*` are moved over on load)
 
 `cid`, `name`, `theme`, `basemap`, `view` (map position), `tab` (open view and tab), `sort`, `fold`,
 `panelHeight`, `listHeight`, `chatHeight`, `mute`, `shape` (area tool), `tutorial` (seen).

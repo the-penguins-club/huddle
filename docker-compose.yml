@@ -4,27 +4,27 @@
 # Keep this at a single replica: room state lives in the process's memory.
 # --build rebuilds the page from src/ inside the image (see the Dockerfile); nothing to build first.
 services:
-  randompin:
+  huddle:
     build: .
     restart: unless-stopped
     environment:
       - TRUST_PROXY=1   # behind Traefik: per-address limits go by the address it forwards
     volumes:
-      # Rooms live in /app/data. This named volume needs nothing else (it's the same volume as when it
-      # was mounted at /data). To keep them in a folder on the host instead, mount ./data:/app/data and
+      # Rooms live in /app/data. This named volume needs nothing else. To keep them in a folder on the
+      # host instead, mount ./data:/app/data and
       # let the container write to it: `sudo chown 1000:1000 data` (the image's node user), or run as
       # yourself by adding user: "${UID}:${GID}" here and setting both in .env.
-      - randompin-data:/app/data
+      - huddle-data:/app/data
     networks:
       - traefik
     labels:
       - traefik.enable=true
       - traefik.docker.network=${TRAEFIK_NETWORK:-traefik}
-      - traefik.http.routers.randompin.rule=Host(`${DOMAIN:?set DOMAIN in .env}`)
-      - traefik.http.routers.randompin.entrypoints=${TRAEFIK_ENTRYPOINT:-websecure}
-      - traefik.http.routers.randompin.tls=true
-      - traefik.http.routers.randompin.tls.certresolver=${TRAEFIK_CERTRESOLVER:-letsencrypt}
-      - traefik.http.services.randompin.loadbalancer.server.port=8765
+      - traefik.http.routers.huddle.rule=Host(`${DOMAIN:?set DOMAIN in .env}`)
+      - traefik.http.routers.huddle.entrypoints=${TRAEFIK_ENTRYPOINT:-websecure}
+      - traefik.http.routers.huddle.tls=true
+      - traefik.http.routers.huddle.tls.certresolver=${TRAEFIK_CERTRESOLVER:-letsencrypt}
+      - traefik.http.services.huddle.loadbalancer.server.port=8765
 
 networks:
   traefik:
@@ -32,4 +32,4 @@ networks:
     name: ${TRAEFIK_NETWORK:-traefik}
 
 volumes:
-  randompin-data:
+  huddle-data:

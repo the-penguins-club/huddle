@@ -131,7 +131,7 @@ function connect(id, seed = null) {
   };
 }
 
-const RUN_HINT = 'Run `node server.js` in the random-pin folder and open the URL it prints.';
+const RUN_HINT = 'Run `npm start` in the huddle folder and open the URL it prints.';
 
 // Work out *why* the stream failed, so the message says what to fix.
 async function diagnose(id) {
