@@ -10,6 +10,7 @@
   background: var(--canvas)
 #tgrid
   --rowh: 22px
+  --mh: 12px   // the month row
   width: max-content
   min-width: 100%
   display: grid
@@ -18,13 +19,31 @@
   user-select: none
   -webkit-user-select: none
   touch-action: pan-x pan-y
-  .dh, .hh, > div:first-child
+  .mh, .dh, .hh, > div:first-child
     background: var(--canvas)
-  .dh
+  .mh
     position: sticky
     top: 0
     z-index: 2
-    padding: 10px 0 4px
+    height: var(--mh)
+    color: var(--mut)
+    font-size: var(--fs-2xs)
+    line-height: var(--mh)
+    white-space: nowrap
+    span   // stays in view while its month is: just right of the hour labels (56px wide, and the 4px gap)
+      display: inline-block
+      position: sticky
+      left: 60px
+      padding-left: 2px
+    & + .mh   // where a month starts
+      box-shadow: inset 1px 0 var(--line-strong)
+      span
+        padding-left: 6px
+  .dh
+    position: sticky
+    top: var(--mh)
+    z-index: 2
+    padding: 0 0 4px
     color: var(--mut)
     font-size: var(--fs-s)
     font-weight: 600
@@ -40,7 +59,8 @@
     line-height: var(--rowh)
     text-align: right
     font-variant-numeric: tabular-nums
-  > div:first-child
+  > div:first-child   // the corner, over both header rows
+    grid-row: span 2
     position: sticky
     left: 0
     top: 0

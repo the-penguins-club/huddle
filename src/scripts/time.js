@@ -201,7 +201,7 @@ function renderTime() {
   $('tpeople').textContent = [who.waiting.length && `no hours yet: ${names(who.waiting)}`, who.any.length && `free anytime: ${names(who.any)}`, who.skip.length && `skipping: ${names(who.skip)}`].filter(Boolean).join(' · ');
   if (tSel != null && !st.has(tSel)) tSel = null;
 
-  // Grid: an hour column, then a column per day.
+  // Grid: an hour column, then a column per day, under two header rows: the months, then the days.
   const g = $('tgrid');
   g.classList.toggle('inactive', myStat !== 'hours' && !tLimitMode);
   g.classList.toggle('limiting', tLimitMode);
@@ -209,12 +209,25 @@ function renderTime() {
   // if fewer) share the width; more days than that scroll sideways.
   const tv = $('time'), shown = Math.min(r.days, 7);
   const colW = Math.max(36, Math.floor((tv.clientWidth - 56 - 4 * (shown - 1)) / shown));
-  g.style.gridTemplateColumns = `auto repeat(${r.days}, ${colW}px)`;
-  g.style.setProperty('--rowh', `${Math.max(14, Math.min(72, Math.floor((tv.clientHeight - 58) / (r.to - r.from))))}px`);
+  g.style.gridTemplateColumns = `56px repeat(${r.days}, ${colW}px)`;   // (56: the hour labels, also in time.styl)
+  g.style.setProperty('--rowh', `${Math.max(14, Math.min(72, Math.floor((tv.clientHeight - 60) / (r.to - r.from))))}px`);
   const inBox = (d, h) => limitBox && d >= Math.min(limitBox.from[0], limitBox.to[0]) && d <= Math.max(limitBox.from[0], limitBox.to[0])
     && h >= Math.min(limitBox.from[1], limitBox.to[1]) && h <= Math.max(limitBox.from[1], limitBox.to[1]);
   const cells = [el('div')];
-  for (let d = 0; d < r.days; d++) cells.push(el('div', { className: 'dh' }, dayLabel(zonedHour(r.start, d, 12, tz), tz)));
+  // A month spans its days; its name sticks to the left while any of them is in view. The year shows
+  // when it isn't this one.
+  const noon = (d) => zonedHour(r.start, d, 12, tz), thisYear = fmtIn(Date.now(), tz, { year: 'numeric' });
+  for (let d = 0; d < r.days;) {
+    const key = fmtIn(noon(d), tz, { year: 'numeric', month: 'numeric' });
+    let n = 1;
+    while (d + n < r.days && fmtIn(noon(d + n), tz, { year: 'numeric', month: 'numeric' }) === key) n++;
+    const year = fmtIn(noon(d), tz, { year: 'numeric' });
+    const m = el('div', { className: 'mh' }, el('span', {}, fmtIn(noon(d), tz, year === thisYear ? { month: 'long' } : { month: 'long', year: 'numeric' })));
+    m.style.gridColumn = `span ${n}`;
+    cells.push(m);
+    d += n;
+  }
+  for (let d = 0; d < r.days; d++) cells.push(el('div', { className: 'dh' }, dayLabel(noon(d), tz)));
   const at = (d, h) => {
     if (h < r.from || h >= r.to) return null;
     const x = slots[d * (r.to - r.from) + (h - r.from)];
@@ -329,10 +342,10 @@ function edgeScroll() {
   paint.raf = null;
   const box = $('time').getBoundingClientRect(), m = 36, { x, y } = paint.pt;
   const dx = x < box.left + m + 40 ? -12 : x > box.right - m ? 12 : 0;   // + the hour labels on the left
-  const dy = y < box.top + m + 20 ? -12 : y > box.bottom - m ? 12 : 0;   // + the day labels on top
+  const dy = y < box.top + m + 22 ? -12 : y > box.bottom - m ? 12 : 0;   // + the month and day labels on top
   if (!dx && !dy) return;
   $('time').scrollBy(dx, dy);
-  const cx = Math.min(Math.max(x, box.left + m + 44), box.right - m), cy = Math.min(Math.max(y, box.top + m + 24), box.bottom - m);
+  const cx = Math.min(Math.max(x, box.left + m + 44), box.right - m), cy = Math.min(Math.max(y, box.top + m + 26), box.bottom - m);
   strokeTo(cellAt({ clientX: cx, clientY: cy }));
   paint.raf = requestAnimationFrame(edgeScroll);
 }
