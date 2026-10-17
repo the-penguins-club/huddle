@@ -9,13 +9,14 @@ Decisions and the reasons for them. Change the code and this together.
 - **Space**: pins on the map. Random drops land inside the limit area (box or freehand), away from other
   pins; a hand-placed pin within 100 m of another becomes a vote for that one. Votes are +1/−1/0 (an
   arrow again takes yours back). Pin owners label pins (≤ 30 chars) in the list.
-- **Time**: a calendar of hours (4 weeks × 24 h in your own zone, or the limit everyone shares, in its
-  zone). Without a limit, hours start at the minute most of the room's marked hours do, so zones half an
-  hour off (India, Nepal, Newfoundland) share cells (theirs read 10:30–11:30). An hour the clocks skip
-  is a gap. People mark hours, or
-  say *Free anytime* or *Skip* (which clears their hours; anyone can still vote). Colours: nobody / 1 /
-  2+ / everyone. *Everyone* = all who count: people who marked hours plus anyone online who hasn't yet;
-  free-anytime people and skippers don't count. Hours are voted ±1 like pins.
+- **Time**: a calendar of hours: 24 h a day from today in your own zone, with no end (it grows by four
+  weeks as you scroll right, up to the server's 400-day window, and always reaches the furthest hour
+  anyone marked or voted), or the limit everyone shares, in its zone. Without a limit, hours start at
+  the minute most of the room's marked hours do, so zones half an hour off (India, Nepal,
+  Newfoundland) share cells (theirs read 10:30–11:30). An hour the clocks skip is a gap. People mark
+  hours, or say *Free anytime* or *Skip* (which clears their hours; anyone can still vote). Colours:
+  nobody / 1 / 2+ / everyone. *Everyone* = all who count: people who marked hours plus anyone online
+  who hasn't yet; free-anytime people and skippers don't count. Hours are voted ±1 like pins.
 - Limits (area and time) are drawn, never tapped: a box needs a drag, so a stray tap can't narrow
   everyone's choice.
 - **The pick**: the most-voted hour (score > 0; ties: more people free, then earlier) at the most-voted

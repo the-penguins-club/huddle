@@ -31,9 +31,22 @@ function zonedHour(start, day, hour, tz, min = 0) {
 }
 const todayIn = (tz) => { const p = partsIn(Date.now(), tz); return `${p.year}-${p.month}-${p.day}`; };
 // What the grid shows. With a time limit (someone's box, like the map's limit area): just that range,
-// stretched to fill the view, the way the map zooms to its area. Without one: four weeks from today,
-// all 24 hours, in your own time zone; either way 7 days fit at once and more scroll sideways.
-const gridSpec = () => (room.range ? { ...room.range, min: 0, fit: true } : { tz: myTz, start: todayIn(myTz), days: 28, from: 0, to: 24, min: roomMinute(), fit: false });
+// stretched to fill the view, the way the map zooms to its area. Without one: all 24 hours from today,
+// in your own time zone, with no end: four weeks at first, four more whenever you scroll near the
+// right edge, and always as far as anyone has marked or voted (so everyone's calendar, and pick, has
+// every hour in play). It stops at MAX_DAYS: the server keeps hours within 400 days of now. Either
+// way 7 days fit at once and more scroll sideways.
+const DAYS = 28, MAX_DAYS = 390;
+let tMoreDays = 0;   // days added by scrolling
+function gridSpec() {
+  if (room.range) return { ...room.range, min: 0, fit: true };
+  const start = todayIn(myTz), t0 = zonedHour(start, 0, 0, myTz) ?? Date.now();
+  let last = 0;
+  for (const list of Object.values(room.avail)) for (const x of list) last = Math.max(last, x);
+  for (const x of Object.keys(room.tvotes)) last = Math.max(last, +x);
+  const marked = last > t0 ? Math.ceil((last - t0 + 1) / 864e5) + 1 : 0;   // (+1: days with a clock change aren't 24 hours)
+  return { tz: myTz, start, days: Math.min(MAX_DAYS, Math.max(DAYS + tMoreDays, marked)), from: 0, to: 24, min: roomMinute(), fit: false };
+}
 // Without a limit everyone sees their own zone, but zones aren't all whole hours apart (India is
 // +5:30, Nepal +5:45): there, hours start at the minute most of the room's marked hours start on, so
 // "10:30" here is the "05:00" someone in London marked. With nothing marked yet, at :00.
@@ -69,6 +82,14 @@ $('tlimit').addEventListener('click', () => {
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && tLimitMode) { e.stopImmediatePropagation(); setLimitMode(false); } }, true);
 // Re-fit the calendar when the view changes size.
 new ResizeObserver(() => { if (view === 'time') renderTime(); }).observe($('time'));
+// Near the right edge (within half a view) of an unlimited calendar: four more weeks.
+$('time').addEventListener('scroll', () => {
+  const tv = $('time');
+  if (view !== 'time' || room.range || DAYS + tMoreDays >= MAX_DAYS) return;
+  if (tv.scrollLeft + tv.clientWidth < tv.scrollWidth - tv.clientWidth / 2) return;
+  tMoreDays += DAYS;
+  renderTime();
+}, { passive: true });
 
 // Your answer: by default you paint your hours; "Free anytime" and "Skip" are toggles (press again to
 // go back to painting). Skip clears your hours (the server does the same); votes stay, anyone can vote.
